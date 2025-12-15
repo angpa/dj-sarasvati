@@ -22,10 +22,10 @@ export default function SceneBackground() {
                 <pointLight position={[10, 10, 10]} intensity={1} color="#f0abfc" />
                 <pointLight position={[-10, -10, -10]} intensity={1} color="#22d3ee" />
 
-                <StarField count={3000} speed={1.5} />
+                <StarField count={500} speed={1.5} />
                 <AudioVisualizer />
 
-                <EffectComposer>
+                {/* <EffectComposer>
                     <Bloom
                         luminanceThreshold={0.2}
                         mipmapBlur
@@ -37,7 +37,7 @@ export default function SceneBackground() {
                         offset={[0.002, 0.002]} // RGB shift
                     />
                     <Noise opacity={0.05} />
-                </EffectComposer>
+                </EffectComposer> */}
             </Canvas>
         </div>
     );
