@@ -4,51 +4,51 @@ import { useRef, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
-export default function StarField({ count = 2000, speed = 1 }) {
-  const mesh = useRef<THREE.InstancedMesh>(null);
-  const dummy = useMemo(() => new THREE.Object3D(), []);
+export default function StarField({ count = 1000, speed = 1 }) {
+  const pointsRef = useRef<THREE.Points>(null);
 
   // Generate random initial positions
   const particles = useMemo(() => {
-    const temp = [];
+    const positions = new Float32Array(count * 3);
     for (let i = 0; i < count; i++) {
-      const x = (Math.random() - 0.5) * 800;
-      const y = (Math.random() - 0.5) * 800;
-      const z = (Math.random() - 0.5) * 800;
-      temp.push({ x, y, z });
+      positions[i * 3] = (Math.random() - 0.5) * 800;
+      positions[i * 3 + 1] = (Math.random() - 0.5) * 800;
+      positions[i * 3 + 2] = (Math.random() - 0.5) * 800;
     }
-    return temp;
+    return positions;
   }, [count]);
 
   useFrame((state, delta) => {
-    if (!mesh.current) return;
+    if (!pointsRef.current) return;
 
-    particles.forEach((particle, i) => {
+    const positions = pointsRef.current.geometry.attributes.position.array as Float32Array;
+
+    for (let i = 0; i < count; i++) {
       // Move star towards camera (positive Z)
-      particle.z += 20 * speed * delta * 5;
+      positions[i * 3 + 2] += 20 * speed * delta * 5;
 
       // Reset when too close
-      if (particle.z > 400) {
-        particle.z = -400;
-        particle.x = (Math.random() - 0.5) * 800;
-        particle.y = (Math.random() - 0.5) * 800;
+      if (positions[i * 3 + 2] > 400) {
+        positions[i * 3 + 2] = -400;
+        positions[i * 3] = (Math.random() - 0.5) * 800;
+        positions[i * 3 + 1] = (Math.random() - 0.5) * 800;
       }
+    }
 
-      dummy.position.set(particle.x, particle.y, particle.z);
-      // Scale based on speed for warp effect (stretch Z)
-      const scale = 1.0 + (speed - 1) * 0.5;
-      dummy.scale.set(1, 1, scale);
-
-      dummy.updateMatrix();
-      mesh.current!.setMatrixAt(i, dummy.matrix);
-    });
-    mesh.current.instanceMatrix.needsUpdate = true;
+    pointsRef.current.geometry.attributes.position.needsUpdate = true;
   });
 
   return (
-    <instancedMesh ref={mesh} count={count}>
-      <dodecahedronGeometry args={[0.2, 0]} />
-      <meshBasicMaterial color="#ffffff" transparent opacity={0.8} />
-    </instancedMesh>
+    <points ref={pointsRef}>
+      <bufferGeometry>
+        <bufferAttribute
+          attach="attributes-position"
+          count={particles.length / 3}
+          array={particles}
+          itemSize={3}
+        />
+      </bufferGeometry>
+      <pointsMaterial size={2} color="#ffffff" sizeAttenuation transparent opacity={0.8} />
+    </points>
   );
 }
