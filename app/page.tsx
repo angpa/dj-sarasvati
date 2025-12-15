@@ -84,7 +84,7 @@ export default function Home() {
                     <div
                         className={clsx(
                             "rounded-xl bg-black/50 shadow-inner flex items-center justify-center mb-4 border border-white/5 relative overflow-hidden group transition-all duration-500 ease-in-out",
-                            isCinemaMode ? "fixed inset-0 z-50 w-full h-full rounded-none border-none bg-black" : "w-64 h-64"
+                            isCinemaMode ? "fixed inset-0 z-50 w-full h-full rounded-none border-none bg-black" : "w-80 h-80 md:w-96 md:h-96"
                         )}
                     >
                         <BackgroundAudio
@@ -92,6 +92,7 @@ export default function Home() {
                             isPlaying={isPlaying}
                             volume={volume}
                             introSkip={currentTrack.introSkip}
+                            outroSkip={currentTrack.outroSkip}
                             onEnded={handleNext}
                             onProgress={handleProgress}
                             className={clsx(

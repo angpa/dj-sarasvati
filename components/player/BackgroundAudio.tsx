@@ -8,6 +8,7 @@ interface BackgroundAudioProps {
     isPlaying: boolean;
     volume: number;
     introSkip: number;
+    outroSkip?: number;
     onEnded: () => void;
     onProgress?: (current: number, duration: number) => void;
     className?: string;
@@ -18,6 +19,7 @@ export default function BackgroundAudio({
     isPlaying,
     volume,
     introSkip,
+    outroSkip = 0,
     onEnded,
     onProgress,
     className
@@ -41,16 +43,29 @@ export default function BackgroundAudio({
         playerRef.current.setVolume(volume);
     }, [volume]);
 
-    // Poll for progress
+    // Poll for progress & Check Outro Skip
     useEffect(() => {
         let interval: NodeJS.Timeout;
 
-        if (isPlaying && onProgress) {
+        if (isPlaying) {
             interval = setInterval(() => {
                 if (playerRef.current && typeof playerRef.current.getCurrentTime === 'function') {
                     const current = playerRef.current.getCurrentTime();
                     const duration = playerRef.current.getDuration();
-                    onProgress(current, duration);
+
+                    // Report progress
+                    if (onProgress) {
+                        onProgress(current, duration);
+                    }
+
+                    // Check for Outro Skip
+                    // Should be at least halfway through to avoid skipping immediately on broken metadata
+                    if (outroSkip > 0 && duration > 0 && current > duration / 2) {
+                        if (duration - current <= outroSkip) {
+                            console.log("Auto-skipping outro");
+                            onEnded(); // Trigger next track
+                        }
+                    }
                 }
             }, 1000);
         }
@@ -58,7 +73,7 @@ export default function BackgroundAudio({
         return () => {
             if (interval) clearInterval(interval);
         };
-    }, [isPlaying, onProgress]);
+    }, [isPlaying, onProgress, outroSkip, onEnded]);
 
     const onReady = (event: YouTubeEvent) => {
         playerRef.current = event.target;
