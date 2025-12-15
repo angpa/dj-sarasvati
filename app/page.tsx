@@ -7,12 +7,17 @@ import TechText from "@/components/ui/TechText";
 import PlayerControls from "@/components/player/PlayerControls";
 import { tracks } from "@/data/tracks";
 import BackgroundAudio from "@/components/player/BackgroundAudio";
+import { Maximize2, Minimize2 } from "lucide-react";
+import clsx from "clsx";
 
 export default function Home() {
     const [hasEntered, setHasEntered] = useState(false);
     const [isPlaying, setIsPlaying] = useState(false);
     const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
     const [volume, setVolume] = useState(80);
+    const [currentTime, setCurrentTime] = useState(0);
+    const [duration, setDuration] = useState(0);
+    const [isCinemaMode, setIsCinemaMode] = useState(false);
 
     const currentTrack = tracks[currentTrackIndex];
 
@@ -33,6 +38,22 @@ export default function Home() {
     const handlePrev = () => {
         setCurrentTrackIndex((prev) => (prev - 1 + tracks.length) % tracks.length);
         setIsPlaying(true);
+    };
+
+    const handleProgress = (current: number, total: number) => {
+        setCurrentTime(current);
+        setDuration(total);
+    };
+
+    const formatTime = (time: number) => {
+        if (!time || isNaN(time)) return "00:00";
+        const minutes = Math.floor(time / 60);
+        const seconds = Math.floor(time % 60);
+        return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+    };
+
+    const toggleCinemaMode = () => {
+        setIsCinemaMode(!isCinemaMode);
     };
 
     if (!hasEntered) {
@@ -59,16 +80,44 @@ export default function Home() {
         <main className="flex min-h-screen flex-col items-center justify-center p-4 transition-opacity duration-1000">
             <GlassPlayer>
                 <div className="flex flex-col items-center text-center space-y-4 w-full">
-                    <div className="w-64 h-64 rounded-xl bg-black/50 shadow-inner flex items-center justify-center mb-4 border border-white/5 relative overflow-hidden group">
+                    {/* Video Container - Dynamic Size based on Cinema Mode */}
+                    <div
+                        className={clsx(
+                            "rounded-xl bg-black/50 shadow-inner flex items-center justify-center mb-4 border border-white/5 relative overflow-hidden group transition-all duration-500 ease-in-out",
+                            isCinemaMode ? "fixed inset-0 z-50 w-full h-full rounded-none border-none bg-black" : "w-64 h-64"
+                        )}
+                    >
                         <BackgroundAudio
                             videoId={currentTrack.videoId}
                             isPlaying={isPlaying}
                             volume={volume}
                             introSkip={currentTrack.introSkip}
                             onEnded={handleNext}
-                            className="absolute inset-0 w-full h-full pointer-events-none"
+                            onProgress={handleProgress}
+                            className={clsx(
+                                "absolute inset-0 w-full h-full",
+                                // In cinema mode, allow pointer events for controls if needed, but keeping consistent UI is better.
+                                // Let's keep pointer-events-none for standard view to avoid YT UI interference.
+                                // Actually, for cinema mode, user might want to see video clearly.
+                                !isCinemaMode && "pointer-events-none"
+                            )}
                         />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
+                        {/* Overlay Gradient (Only in non-cinema mode or minimal in cinema) */}
+                        <div className={clsx(
+                            "absolute inset-0 pointer-events-none transition-opacity duration-300",
+                            isCinemaMode ? "opacity-0" : "bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-100"
+                        )} />
+
+                        {/* Cinema Toggle Button */}
+                        <button
+                            onClick={toggleCinemaMode}
+                            className={clsx(
+                                "absolute z-50 p-2 rounded-full bg-black/50 backdrop-blur-md text-white/70 hover:text-white hover:bg-white/10 transition-all border border-white/10",
+                                isCinemaMode ? "top-8 right-8" : "top-2 right-2 opacity-0 group-hover:opacity-100"
+                            )}
+                        >
+                            {isCinemaMode ? <Minimize2 size={24} /> : <Maximize2 size={20} />}
+                        </button>
                     </div>
 
                     <div className="space-y-1">
@@ -76,13 +125,17 @@ export default function Home() {
                         <p className="text-electric-cyan font-mono text-sm tracking-widest">ARTIST: {currentTrack.artist}</p>
                     </div>
 
+                    {/* Progress Bar */}
                     <div className="w-full h-1 bg-white/10 rounded-full mt-6 relative overflow-hidden">
-                        <div className="absolute top-0 left-0 h-full w-1/3 bg-gradient-to-r from-neon-fuchsia to-electric-cyan shadow-[0_0_10px_#d946ef]" />
+                        <div
+                            className="absolute top-0 left-0 h-full bg-gradient-to-r from-neon-fuchsia to-electric-cyan shadow-[0_0_10px_#d946ef] transition-all duration-1000 ease-linear"
+                            style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
+                        />
                     </div>
 
                     <div className="flex justify-between w-full text-xs font-mono text-white/50 mt-1">
-                        <span>01:23</span>
-                        <span>04:44</span>
+                        <span>{formatTime(currentTime)}</span>
+                        <span>{formatTime(duration)}</span>
                     </div>
 
                     <PlayerControls
@@ -98,6 +151,27 @@ export default function Home() {
                 <TechText dimmed>VOL: {volume}%</TechText>
                 <TechText dimmed>BPM: 128</TechText>
             </div>
+
+            {/* Cinema Mode Controls Overlay */}
+            {isCinemaMode && (
+                <div className="fixed bottom-10 left-0 right-0 z-[60] flex justify-center pointer-events-none">
+                    <div className="bg-black/80 backdrop-blur-xl border border-white/10 p-4 rounded-2xl pointer-events-auto flex gap-8 items-center animate-in slide-in-from-bottom-10 fade-in duration-300">
+                        <div className="text-left">
+                            <h2 className="text-lg font-light text-white">{currentTrack.title}</h2>
+                            <p className="text-electric-cyan text-xs tracking-widest">{currentTrack.artist}</p>
+                        </div>
+                        <PlayerControls
+                            isPlaying={isPlaying}
+                            onPlayPause={togglePlay}
+                            onNext={handleNext}
+                            onPrev={handlePrev}
+                        />
+                        <button onClick={toggleCinemaMode} className="text-white/50 hover:text-white">
+                            <Minimize2 size={20} />
+                        </button>
+                    </div>
+                </div>
+            )}
         </main>
     );
 }

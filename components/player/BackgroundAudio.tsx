@@ -9,6 +9,7 @@ interface BackgroundAudioProps {
     volume: number;
     introSkip: number;
     onEnded: () => void;
+    onProgress?: (current: number, duration: number) => void;
     className?: string;
 }
 
@@ -18,6 +19,7 @@ export default function BackgroundAudio({
     volume,
     introSkip,
     onEnded,
+    onProgress,
     className
 }: BackgroundAudioProps) {
     const playerRef = useRef<YouTubePlayer | null>(null);
@@ -38,6 +40,25 @@ export default function BackgroundAudio({
         if (!playerRef.current) return;
         playerRef.current.setVolume(volume);
     }, [volume]);
+
+    // Poll for progress
+    useEffect(() => {
+        let interval: NodeJS.Timeout;
+
+        if (isPlaying && onProgress) {
+            interval = setInterval(() => {
+                if (playerRef.current && typeof playerRef.current.getCurrentTime === 'function') {
+                    const current = playerRef.current.getCurrentTime();
+                    const duration = playerRef.current.getDuration();
+                    onProgress(current, duration);
+                }
+            }, 1000);
+        }
+
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+    }, [isPlaying, onProgress]);
 
     const onReady = (event: YouTubeEvent) => {
         playerRef.current = event.target;
