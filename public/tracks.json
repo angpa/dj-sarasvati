@@ -1,0 +1,32 @@
+[
+    {
+        "artist": "Blondie",
+        "title": "Call Me",
+        "videoId": "StKVS0eI85I",
+        "introSkip": 0
+    },
+    {
+        "artist": "Madonna",
+        "title": "Into the Groove",
+        "videoId": "52iW3lcpK5M",
+        "introSkip": 0
+    },
+    {
+        "artist": "Prince",
+        "title": "Kiss",
+        "videoId": "3Y71iDvCYXA",
+        "introSkip": 0
+    },
+    {
+        "artist": "Depeche Mode",
+        "title": "World in My Eyes",
+        "videoId": "Qf0Qn_6Y8kA",
+        "introSkip": 53
+    },
+    {
+        "artist": "Charly García & Pedro Aznar",
+        "title": "Hablando a Tu Corazón",
+        "videoId": "Z9nK0CqG9K0",
+        "introSkip": 0
+    }
+]
