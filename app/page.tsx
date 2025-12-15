@@ -1,83 +1,87 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-
-declare global {
-    interface Window {
-        YT: any;
-        onYouTubeIframeAPIReady: () => void;
-    }
-}
-
-type Track = {
-    artist: string;
-    title: string;
-    videoId: string;
-    introSkip: number;
-};
+import { useState } from "react";
+import GlassPlayer from "@/components/player/GlassPlayer";
+import NeonButton from "@/components/ui/NeonButton";
+import TechText from "@/components/ui/TechText";
+import PlayerControls from "@/components/player/PlayerControls";
 
 export default function Home() {
-    const playerRef = useRef<any>(null);
-    const [tracks, setTracks] = useState<Track[]>([]);
-    const [index, setIndex] = useState(0);
+    const [hasEntered, setHasEntered] = useState(false);
+    const [isPlaying, setIsPlaying] = useState(false);
 
-    useEffect(() => {
-        fetch("/tracks.json")
-            .then(res => res.json())
-            .then(setTracks);
-    }, []);
+    const handleEnter = () => {
+        setHasEntered(true);
+        // Ideally initialize audio context here
+    };
 
-    useEffect(() => {
-        if (!tracks.length) return;
+    const togglePlay = () => {
+        setIsPlaying(!isPlaying);
+    };
 
-        const tag = document.createElement("script");
-        tag.src = "https://www.youtube.com/iframe_api";
-        document.body.appendChild(tag);
+    if (!hasEntered) {
+        return (
+            <main className="flex min-h-screen flex-col items-center justify-center p-4">
+                <div className="flex flex-col items-center gap-8 animate-in fade-in zoom-in duration-1000">
+                    <div className="text-center space-y-2">
+                        <TechText animate>System Ready</TechText>
+                        <h1 className="text-6xl md:text-8xl font-thin tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-neon-fuchsia-glow via-white to-electric-cyan-bright">
+                            SARASVATĪ
+                        </h1>
+                        <p className="text-electric-cyan/60 tracking-[0.5em] text-sm uppercase">. The Cosmic DJ .</p>
+                    </div>
 
-        window.onYouTubeIframeAPIReady = () => {
-            playerRef.current = new window.YT.Player("player", {
-                videoId: tracks[index].videoId,
-                playerVars: {
-                    autoplay: 1,
-                    controls: 0,
-                    modestbranding: 1,
-                    rel: 0,
-                },
-                events: {
-                    onStateChange: onStateChange,
-                },
-            });
-        };
-
-        function onStateChange(event: any) {
-            if (event.data === window.YT.PlayerState.PLAYING) {
-                const skip = tracks[index].introSkip;
-                if (skip > 0) {
-                    setTimeout(() => {
-                        playerRef.current.seekTo(skip, true);
-                        console.log(`[sarasvatī] intro skipped at ${skip}s`);
-                    }, skip * 1000);
-                }
-            }
-
-            if (event.data === window.YT.PlayerState.ENDED) {
-                const next = (index + 1) % tracks.length;
-                setIndex(next);
-                playerRef.current.loadVideoById(tracks[next].videoId);
-                console.log(`[sarasvatī] next track`);
-            }
-        }
-    }, [tracks, index]);
+                    <NeonButton onClick={handleEnter} className="mt-8 text-xl px-10 py-4" glow>
+                        ENTER EXPERIENCE
+                    </NeonButton>
+                </div>
+            </main>
+        );
+    }
 
     return (
-        <div
-            style={{
-                width: "100vw",
-                height: "100vh",
-                background: "black",
-            }}
-        >
-            <div id="player" style={{ width: "100%", height: "100%" }} />
-        </div>
+        <main className="flex min-h-screen flex-col items-center justify-center p-4 transition-opacity duration-1000">
+            <div className="w-full max-w-4xl flex flex-col items-center gap-2 mb-8">
+                <div className="flex justify-between w-full px-4 text-xs text-white/30 font-mono">
+                    <span>SESS: 0X92F</span>
+                    <span>FREQ: 432HZ</span>
+                </div>
+            </div>
+
+            <GlassPlayer>
+                <div className="flex flex-col items-center text-center space-y-4 w-full">
+                    <div className="w-64 h-64 rounded-xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 shadow-inner flex items-center justify-center mb-4 border border-white/5 relative overflow-hidden group">
+                        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1614728263952-84ea256f9679?q=80&w=300')] bg-cover bg-center opacity-40 mix-blend-overlay transition-transform duration-700 group-hover:scale-110" />
+                        <div className="w-16 h-1 bg-white/20 rounded-full animate-pulse" />
+                    </div>
+
+                    <div className="space-y-1">
+                        <h2 className="text-3xl font-light tracking-wide text-white">Stellar Drift</h2>
+                        <p className="text-electric-cyan font-mono text-sm tracking-widest">ARTIST: UNKNOWN</p>
+                    </div>
+
+                    <div className="w-full h-1 bg-white/10 rounded-full mt-6 relative overflow-hidden">
+                        <div className="absolute top-0 left-0 h-full w-1/3 bg-gradient-to-r from-neon-fuchsia to-electric-cyan shadow-[0_0_10px_#d946ef]" />
+                    </div>
+
+                    <div className="flex justify-between w-full text-xs font-mono text-white/50 mt-1">
+                        <span>01:23</span>
+                        <span>04:44</span>
+                    </div>
+
+                    <PlayerControls
+                        isPlaying={isPlaying}
+                        onPlayPause={togglePlay}
+                        onNext={() => console.log('next')}
+                        onPrev={() => console.log('prev')}
+                    />
+                </div>
+            </GlassPlayer>
+
+            <div className="fixed bottom-8 flex gap-8">
+                <TechText dimmed>VOL: 80%</TechText>
+                <TechText dimmed>BPM: 128</TechText>
+            </div>
+        </main>
     );
 }
