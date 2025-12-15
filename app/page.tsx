@@ -57,27 +57,18 @@ export default function Home() {
 
     return (
         <main className="flex min-h-screen flex-col items-center justify-center p-4 transition-opacity duration-1000">
-            {/* Hidden Audio Player */}
-            <BackgroundAudio
-                videoId={currentTrack.videoId}
-                isPlaying={isPlaying}
-                volume={volume}
-                introSkip={currentTrack.introSkip}
-                onEnded={handleNext}
-            />
-
-            <div className="w-full max-w-4xl flex flex-col items-center gap-2 mb-8">
-                <div className="flex justify-between w-full px-4 text-xs text-white/30 font-mono">
-                    <span>SESS: 0X92F</span>
-                    <span>FREQ: 432HZ</span>
-                </div>
-            </div>
-
             <GlassPlayer>
                 <div className="flex flex-col items-center text-center space-y-4 w-full">
-                    <div className="w-64 h-64 rounded-xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 shadow-inner flex items-center justify-center mb-4 border border-white/5 relative overflow-hidden group">
-                        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1614728263952-84ea256f9679?q=80&w=300')] bg-cover bg-center opacity-40 mix-blend-overlay transition-transform duration-700 group-hover:scale-110" />
-                        <div className="w-16 h-1 bg-white/20 rounded-full animate-pulse" />
+                    <div className="w-64 h-64 rounded-xl bg-black/50 shadow-inner flex items-center justify-center mb-4 border border-white/5 relative overflow-hidden group">
+                        <BackgroundAudio
+                            videoId={currentTrack.videoId}
+                            isPlaying={isPlaying}
+                            volume={volume}
+                            introSkip={currentTrack.introSkip}
+                            onEnded={handleNext}
+                            className="absolute inset-0 w-full h-full pointer-events-none"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
                     </div>
 
                     <div className="space-y-1">
