@@ -9,6 +9,7 @@ interface BackgroundAudioProps {
     volume: number;
     introSkip: number;
     outroSkip?: number;
+    seekTime?: number | null; // Timestamp to seek to
     onEnded: () => void;
     onProgress?: (current: number, duration: number) => void;
     className?: string;
@@ -20,6 +21,7 @@ export default function BackgroundAudio({
     volume,
     introSkip,
     outroSkip = 0,
+    seekTime,
     onEnded,
     onProgress,
     className
@@ -42,6 +44,12 @@ export default function BackgroundAudio({
         if (!playerRef.current) return;
         playerRef.current.setVolume(volume);
     }, [volume]);
+
+    // Sync Seek
+    useEffect(() => {
+        if (!playerRef.current || seekTime === null || seekTime === undefined) return;
+        playerRef.current.seekTo(seekTime, true);
+    }, [seekTime]);
 
     // Poll for progress & Check Outro Skip
     useEffect(() => {

@@ -18,6 +18,7 @@ export default function Home() {
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
     const [isCinemaMode, setIsCinemaMode] = useState(false);
+    const [seekTime, setSeekTime] = useState<number | null>(null);
 
     const currentTrack = tracks[currentTrackIndex];
 
@@ -33,16 +34,37 @@ export default function Home() {
     const handleNext = () => {
         setCurrentTrackIndex((prev) => (prev + 1) % tracks.length);
         setIsPlaying(true);
+        setSeekTime(null); // Reset seek
     };
 
     const handlePrev = () => {
         setCurrentTrackIndex((prev) => (prev - 1 + tracks.length) % tracks.length);
         setIsPlaying(true);
+        setSeekTime(null); // Reset seek
     };
 
     const handleProgress = (current: number, total: number) => {
         setCurrentTime(current);
         setDuration(total);
+        // Reset seekTime once we see that the time has updated close to it?
+        // Actually, react-youtube seekTo works best if we just trigger it once.
+        // We can pass a changing value (like valid number) to trigger useEffect.
+    };
+
+    const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (!duration) return;
+        const rect = e.currentTarget.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const width = rect.width;
+        const percentage = Math.max(0, Math.min(1, x / width));
+        const newTime = percentage * duration;
+
+        setSeekTime(newTime);
+        // We need to clear it shortly after to allow re-seeking to same spot, 
+        // or just rely on newTime typically being slightly different.
+        // A better pattern for BackgroundAudio might be to use a timestamp or request ID for seeking.
+        // For now, simple value change is likely fine.
+        setTimeout(() => setSeekTime(null), 100);
     };
 
     const formatTime = (time: number) => {
@@ -93,6 +115,7 @@ export default function Home() {
                             volume={volume}
                             introSkip={currentTrack.introSkip}
                             outroSkip={currentTrack.outroSkip}
+                            seekTime={seekTime}
                             onEnded={handleNext}
                             onProgress={handleProgress}
                             className={clsx(
@@ -127,11 +150,19 @@ export default function Home() {
                     </div>
 
                     {/* Progress Bar */}
-                    <div className="w-full h-1 bg-white/10 rounded-full mt-6 relative overflow-hidden">
+                    <div
+                        className="w-full h-1 bg-white/10 rounded-full mt-6 relative overflow-visible cursor-pointer group/progress"
+                        onClick={handleSeek}
+                    >
+                        {/* Hit Area for easier clicking */}
+                        <div className="absolute -top-2 -bottom-2 -left-0 -right-0 bg-transparent z-10" />
+
                         <div
-                            className="absolute top-0 left-0 h-full bg-gradient-to-r from-neon-fuchsia to-electric-cyan shadow-[0_0_10px_#d946ef] transition-all duration-1000 ease-linear"
+                            className="absolute top-0 left-0 h-full bg-gradient-to-r from-neon-fuchsia to-electric-cyan shadow-[0_0_10px_#d946ef] transition-all duration-1000 ease-linear pointer-events-none"
                             style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
                         />
+                        {/* Hover Indicator */}
+                        <div className="absolute top-0 left-0 h-full w-full opacity-0 group-hover/progress:opacity-20 bg-white transition-opacity duration-200 pointer-events-none" />
                     </div>
 
                     <div className="flex justify-between w-full text-xs font-mono text-white/50 mt-1">
