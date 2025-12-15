@@ -6,17 +6,19 @@ import NeonButton from "@/components/ui/NeonButton";
 import TechText from "@/components/ui/TechText";
 import PlayerControls from "@/components/player/PlayerControls";
 import { tracks } from "@/data/tracks";
+import BackgroundAudio from "@/components/player/BackgroundAudio";
 
 export default function Home() {
     const [hasEntered, setHasEntered] = useState(false);
     const [isPlaying, setIsPlaying] = useState(false);
     const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
+    const [volume, setVolume] = useState(80);
 
     const currentTrack = tracks[currentTrackIndex];
 
     const handleEnter = () => {
         setHasEntered(true);
-        // Ideally initialize audio context here
+        setIsPlaying(true); // Auto-play on enter
     };
 
     const togglePlay = () => {
@@ -25,10 +27,12 @@ export default function Home() {
 
     const handleNext = () => {
         setCurrentTrackIndex((prev) => (prev + 1) % tracks.length);
+        setIsPlaying(true);
     };
 
     const handlePrev = () => {
         setCurrentTrackIndex((prev) => (prev - 1 + tracks.length) % tracks.length);
+        setIsPlaying(true);
     };
 
     if (!hasEntered) {
@@ -53,6 +57,15 @@ export default function Home() {
 
     return (
         <main className="flex min-h-screen flex-col items-center justify-center p-4 transition-opacity duration-1000">
+            {/* Hidden Audio Player */}
+            <BackgroundAudio
+                videoId={currentTrack.videoId}
+                isPlaying={isPlaying}
+                volume={volume}
+                introSkip={currentTrack.introSkip}
+                onEnded={handleNext}
+            />
+
             <div className="w-full max-w-4xl flex flex-col items-center gap-2 mb-8">
                 <div className="flex justify-between w-full px-4 text-xs text-white/30 font-mono">
                     <span>SESS: 0X92F</span>
@@ -91,7 +104,7 @@ export default function Home() {
             </GlassPlayer>
 
             <div className="fixed bottom-8 flex gap-8">
-                <TechText dimmed>VOL: 80%</TechText>
+                <TechText dimmed>VOL: {volume}%</TechText>
                 <TechText dimmed>BPM: 128</TechText>
             </div>
         </main>
