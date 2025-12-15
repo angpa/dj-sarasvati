@@ -27,7 +27,7 @@ export const tracks: Track[] = [
     {
         "artist": "Depeche Mode",
         "title": "World in My Eyes",
-        "videoId": "",
+        "videoId": "nhZdL4JlnxI",
         "introSkip": 53
     },
     {
