@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 import { Outfit, JetBrains_Mono } from "next/font/google";
-import SceneBackground from "@/components/scene/SceneBackground";
+import dynamic from "next/dynamic";
 import "./globals.css";
+
+const SceneBackground = dynamic(() => import("@/components/scene/SceneBackground"), {
+    ssr: false,
+});
 
 const outfit = Outfit({
     subsets: ["latin"],

@@ -5,10 +5,14 @@ import GlassPlayer from "@/components/player/GlassPlayer";
 import NeonButton from "@/components/ui/NeonButton";
 import TechText from "@/components/ui/TechText";
 import PlayerControls from "@/components/player/PlayerControls";
+import { tracks } from "@/data/tracks";
 
 export default function Home() {
     const [hasEntered, setHasEntered] = useState(false);
     const [isPlaying, setIsPlaying] = useState(false);
+    const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
+
+    const currentTrack = tracks[currentTrackIndex];
 
     const handleEnter = () => {
         setHasEntered(true);
@@ -17,6 +21,14 @@ export default function Home() {
 
     const togglePlay = () => {
         setIsPlaying(!isPlaying);
+    };
+
+    const handleNext = () => {
+        setCurrentTrackIndex((prev) => (prev + 1) % tracks.length);
+    };
+
+    const handlePrev = () => {
+        setCurrentTrackIndex((prev) => (prev - 1 + tracks.length) % tracks.length);
     };
 
     if (!hasEntered) {
@@ -56,8 +68,8 @@ export default function Home() {
                     </div>
 
                     <div className="space-y-1">
-                        <h2 className="text-3xl font-light tracking-wide text-white">Stellar Drift</h2>
-                        <p className="text-electric-cyan font-mono text-sm tracking-widest">ARTIST: UNKNOWN</p>
+                        <h2 className="text-3xl font-light tracking-wide text-white">{currentTrack.title}</h2>
+                        <p className="text-electric-cyan font-mono text-sm tracking-widest">ARTIST: {currentTrack.artist}</p>
                     </div>
 
                     <div className="w-full h-1 bg-white/10 rounded-full mt-6 relative overflow-hidden">
@@ -72,8 +84,8 @@ export default function Home() {
                     <PlayerControls
                         isPlaying={isPlaying}
                         onPlayPause={togglePlay}
-                        onNext={() => console.log('next')}
-                        onPrev={() => console.log('prev')}
+                        onNext={handleNext}
+                        onPrev={handlePrev}
                     />
                 </div>
             </GlassPlayer>
