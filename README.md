@@ -4,14 +4,19 @@
 
 > *"The Cosmic DJ. An immersive audio experience powered by the void."*
 
-**DJ Sarasvatī** is a Next.js web application designed with a high-end "Synthwave / Retro-Futuristic" aesthetic. It features a reactive 3D deep space background, neon accents, and a glassmorphism-based player interface.
+**DJ Sarasvatī** is a Next.js web application designed with a high-end "Synthwave / Retro-Futuristic" aesthetic. It features a reactive 3D deep space background, neon accents, and a glassmorphism-based player interface that streams curated tracks via YouTube.
 
 ## 🌌 Features
 
--   **Immersive 3D Background**: A "Warp Speed" starfield and reactive geometric visualizers built with `Three.js` and `@react-three/fiber`.
+-   **Immersive 3D Background**: A "Warp Speed" starfield and reactive geometric visualizers built with `Three.js` and `@react-three/fiber`. (Optimized for performance).
+-   **Audio Integration**: Powered by `react-youtube`, seamlessly integrated into a custom UI.
+    -   **Auto-Play**: Music starts automatically upon entering the experience.
+    -   **Intro Skipping**: Intelligently skips intros for verified tracks (e.g., Depeche Mode).
+    -   **Continuous Playback**: Auto-advances to the next track in the playlist.
+-   **Cinema Mode**: A dedicated "Expand" toggle to view music videos in full-screen overlay mode while maintaining audio continuity.
 -   **Neon Aesthetics**: Custom Tailwind CSS configuration for glowing fuchsia and cyan accents against a deep void black.
 -   **Glassmorphism UI**: High-performance backdrop blur and transparency effects for a premium "HUD" feel.
--   **Post-Processing**: Bloom and Chromatic Aberration effects for that retro-lens look.
+-   **Dynamic Time Tracking**: Real-time progress and duration display.
 
 ## 🛠 Tech Stack
 
@@ -20,8 +25,10 @@
 -   **3D Graphics**:
     -   [`@react-three/fiber`](https://docs.pmnd.rs/react-three-fiber): React renderer for Three.js.
     -   [`@react-three/drei`](https://github.com/pmndrs/drei): Useful helpers for R3F.
-    -   [`@react-three/postprocessing`](https://github.com/pmndrs/react-postprocessing): Effect composer for Bloom and Glitch effects.
+    -   *Note: Post-processing (Bloom/Noise) is currently disabled for maximum stability.*
+-   **Audio/Video**: `react-youtube` wrapper for iframe API.
 -   **Icons**: [Lucide React](https://lucide.dev/)
+-   **Deployment**: Vercel
 
 ## 🚀 Getting Started
 
