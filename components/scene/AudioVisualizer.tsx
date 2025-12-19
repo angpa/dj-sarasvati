@@ -122,7 +122,7 @@ function FloatingCrystals({ analyser, dataArray }: { analyser: AnalyserNode | nu
             // Actually, we can just pass the volume if we calculated it in parent, but passing props is cheaper than context.
             try {
                 // Re-get data is safe
-                analyser.getByteFrequencyData(dataArray);
+                analyser.getByteFrequencyData(dataArray as any);
                 let sum = 0;
                 for (let i = 0; i < dataArray.length; i++) {
                     sum += dataArray[i];
