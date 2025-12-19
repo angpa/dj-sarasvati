@@ -10,7 +10,7 @@ import { EffectComposer, Bloom, ChromaticAberration, Noise } from "@react-three/
 const getAverageVolume = (analyser: AnalyserNode | null, dataArray: Uint8Array) => {
     if (!analyser) return 0;
     try {
-        analyser.getByteFrequencyData(dataArray);
+        analyser.getByteFrequencyData(dataArray as any);
         let sum = 0;
         for (let i = 0; i < dataArray.length; i++) {
             sum += dataArray[i];
