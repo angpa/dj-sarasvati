@@ -152,8 +152,8 @@ export default function BackgroundAudio({
                     onEnded();
                 }}
                 className={clsx(
-                    "w-full h-full object-cover transition-transform duration-75",
-                    isPlaying && beat ? "scale-105 brightness-125" : "scale-100 brightness-100"
+                    "w-full h-full object-cover transition-all duration-75 ease-out",
+                    isPlaying && beat ? "scale-105 brightness-125 contrast-125" : "scale-100 brightness-100"
                 )}
                 iframeClassName="w-full h-full object-cover"
             />

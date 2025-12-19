@@ -157,17 +157,20 @@ export function useAudioEngine() {
 
     const analyzeBeat = useCallback(() => {
         if (!analyserRef.current) return;
-        const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
+        const bufferLength = analyserRef.current.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
         analyserRef.current.getByteFrequencyData(dataArray);
 
         // Analyze sub-bass (first 10 bins, approx 0-200Hz depending on sample rate/fft)
-        const lowEnd = dataArray.slice(0, 10);
-        const avgLow = lowEnd.reduce((a, b) => a + b) / lowEnd.length;
+        if (dataArray && dataArray.length > 0) {
+            const lowEnd = dataArray.slice(0, 10);
+            const avgLow = lowEnd.reduce((a, b) => a + b, 0) / lowEnd.length;
 
-        // Dynamic threshold or fixed for now as per request > 210
-        if (avgLow > 210) {
-            setBeat(true);
-            setTimeout(() => setBeat(false), 100);
+            // Dynamic threshold or fixed for now as per request > 210
+            if (avgLow > 210) {
+                setBeat(true);
+                setTimeout(() => setBeat(false), 100);
+            }
         }
         requestAnimationFrame(analyzeBeat);
     }, []);

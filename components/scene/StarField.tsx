@@ -4,7 +4,7 @@ import { useRef, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
-export default function StarField({ count = 1000, speed = 1 }) {
+export default function StarField({ count = 400, speed = 1 }) {
   const pointsRef = useRef<THREE.Points>(null);
 
   // Generate random initial positions

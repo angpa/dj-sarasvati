@@ -100,11 +100,13 @@ export default function AudioVisualizer({ analyser }: { analyser: AnalyserNode |
                 <FloatingCrystals analyser={analyser} dataArray={dataArray} />
             </group>
 
+            {/* EffectComposer disabled for performance optimization to prevent Context Lost
             <EffectComposer>
                 <Bloom luminanceThreshold={0.5} luminanceSmoothing={0.9} height={300} intensity={2.5} />
                 <Noise opacity={0.05} />
                 <ChromaticAberration offset={[0.002, 0.002] as any} />
             </EffectComposer>
+            */}
         </>
     );
 }
