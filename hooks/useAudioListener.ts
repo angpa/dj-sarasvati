@@ -105,7 +105,9 @@ export function useAudioListener(
             const stream = await navigator.mediaDevices.getDisplayMedia({
                 video: true, // Required to get audio in most browsers
                 audio: true,
-            });
+                selfBrowserSurface: "include", // Explicitly allow capturing the current tab
+                preferCurrentTab: true, // Hint to browser to prioritize current tab
+            } as any); // Cast to any because TS might not have these experimental types yet
 
             // If user didn't share audio, we might get a track with no audio or just video
             const audioTracks = stream.getAudioTracks();
