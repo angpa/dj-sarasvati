@@ -23,7 +23,7 @@ export default function SceneBackground() {
                 <pointLight position={[-10, -10, -10]} intensity={1} color="#22d3ee" />
 
                 <StarField count={500} speed={1.5} />
-                <AudioVisualizer />
+                <AudioVisualizer analyser={null} />
 
                 {/* <EffectComposer>
                     <Bloom
