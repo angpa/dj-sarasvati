@@ -8,14 +8,14 @@ import { EffectComposer, Bloom, ChromaticAberration, Noise } from "@react-three/
 
 // Helper to get average volume from analyser
 const getAverageVolume = (analyser: AnalyserNode | null, dataArray: Uint8Array) => {
-    if (!analyser) return 0;
+    if (!analyser || !dataArray) return 0;
     try {
         analyser.getByteFrequencyData(dataArray as any);
         let sum = 0;
         for (let i = 0; i < dataArray.length; i++) {
             sum += dataArray[i];
         }
-        return sum / dataArray.length; // 0-255
+        return dataArray.length > 0 ? sum / dataArray.length : 0; // 0-255
     } catch (e) {
         return 0;
     }
@@ -121,13 +121,14 @@ function FloatingCrystals({ analyser, dataArray }: { analyser: AnalyserNode | nu
             // For simplicity, re-calculate here is fine as it's cheap sum loop.
             // Actually, we can just pass the volume if we calculated it in parent, but passing props is cheaper than context.
             try {
-                // Re-get data is safe
-                analyser.getByteFrequencyData(dataArray as any);
-                let sum = 0;
-                for (let i = 0; i < dataArray.length; i++) {
-                    sum += dataArray[i];
+                if (dataArray && dataArray.length > 0) {
+                    analyser.getByteFrequencyData(dataArray as any);
+                    let sum = 0;
+                    for (let i = 0; i < dataArray.length; i++) {
+                        sum += dataArray[i];
+                    }
+                    volume = (sum / dataArray.length) / 100;
                 }
-                volume = (sum / dataArray.length) / 100;
             } catch (e) { }
         }
 
