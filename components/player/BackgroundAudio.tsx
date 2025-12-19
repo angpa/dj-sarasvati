@@ -7,7 +7,7 @@ interface BackgroundAudioProps {
     videoId: string;
     isPlaying: boolean;
     volume: number;
-    introSkip: number;
+    introSkip?: number;
     outroSkip?: number;
     seekTime?: number | null; // Timestamp to seek to
     onEnded: () => void;
@@ -20,7 +20,7 @@ export default function BackgroundAudio({
     videoId,
     isPlaying,
     volume,
-    introSkip,
+    introSkip = 0,
     outroSkip = 0,
     seekTime,
     onEnded,

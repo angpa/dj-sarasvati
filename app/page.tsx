@@ -11,18 +11,52 @@ import BackgroundAudio from "@/components/player/BackgroundAudio";
 import { Maximize2, Minimize2, Mic } from "lucide-react";
 import clsx from "clsx";
 import { useAudioListener } from "@/hooks/useAudioListener";
+import { useCrossfader } from "@/hooks/useCrossfader";
+
+type Deck = 'A' | 'B';
 
 export default function Home() {
     const [hasEntered, setHasEntered] = useState(false);
-    const [isPlaying, setIsPlaying] = useState(false);
-    const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
+    const [activeDeck, setActiveDeck] = useState<Deck>('A');
+    // Track indices for each deck
+    const [trackIndexA, setTrackIndexA] = useState(0);
+    const [trackIndexB, setTrackIndexB] = useState(1); // Preload next ?
+
+    const [isPlayingA, setIsPlayingA] = useState(false);
+    const [isPlayingB, setIsPlayingB] = useState(false);
+
     const [volume, setVolume] = useState(80);
+    // Shared Seek/Time state - effectively monitors the ACTIVE deck
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
-    const [isCinemaMode, setIsCinemaMode] = useState(false);
     const [seekTime, setSeekTime] = useState<number | null>(null);
 
-    const currentTrack = tracks[currentTrackIndex];
+    const [isCinemaMode, setIsCinemaMode] = useState(false);
+
+    // Crossfader Hook
+    const { ratio, fadeTo, isFading } = useCrossfader({
+        duration: 5000,
+        onFadeComplete: () => {
+            console.log("Fade complete. Stopping inactive deck.");
+            if (activeDeck === 'A') {
+                // We just faded TO A. Stop B.
+                setIsPlayingB(false);
+            } else {
+                // We just faded TO B. Stop A.
+                setIsPlayingA(false);
+            }
+        }
+    });
+
+    // Determine effective volumes
+    // Volume is 0-100, ratio is 0-1. 
+    // Deck A = (1 - ratio) * volume
+    // Deck B = ratio * volume
+    const volA = (1 - ratio) * volume;
+    const volB = ratio * volume;
+
+    // Derived active track for Display info
+    const currentTrack = activeDeck === 'A' ? tracks[trackIndexA] : tracks[trackIndexB];
 
     // Initialize Audio Listener
     // Trigger next track on silence, with a very low threshold and 2s duration
@@ -37,7 +71,12 @@ export default function Home() {
 
     const handleEnter = async () => {
         setHasEntered(true);
-        setIsPlaying(true); // Auto-play on enter
+        // Start Deck A
+        setIsPlayingA(true);
+        setIsPlayingB(false);
+        setActiveDeck('A');
+
+        // Attempt to start listening immediately
 
         // Attempt to start listening immediately
         try {
@@ -48,27 +87,62 @@ export default function Home() {
     };
 
     const togglePlay = () => {
-        setIsPlaying(!isPlaying);
+        if (activeDeck === 'A') setIsPlayingA(!isPlayingA);
+        else setIsPlayingB(!isPlayingB);
     };
 
     const handleNext = () => {
-        setCurrentTrackIndex((prev) => (prev + 1) % tracks.length);
-        setIsPlaying(true);
-        setSeekTime(null); // Reset seek
+        console.log("Triggering Next Track Transition...");
+
+        // Determine Next Deck
+        const nextDeck = activeDeck === 'A' ? 'B' : 'A';
+
+        // Calculate next track index based on current active track
+        const currentIdx = activeDeck === 'A' ? trackIndexA : trackIndexB;
+        const nextIdx = (currentIdx + 1) % tracks.length;
+
+        // Prepare Next Deck
+        if (nextDeck === 'A') {
+            setTrackIndexA(nextIdx);
+            setIsPlayingA(true);
+        } else {
+            setTrackIndexB(nextIdx);
+            setIsPlayingB(true);
+        }
+
+        // Start Crossfade
+        setActiveDeck(nextDeck); // Switch "Active" label immediately for Metadata? Or after?
+        // Let's switch metadata immediately so user sees what's coming/playing
+        fadeTo(nextDeck);
+        setSeekTime(null);
     };
 
     const handlePrev = () => {
-        setCurrentTrackIndex((prev) => (prev - 1 + tracks.length) % tracks.length);
-        setIsPlaying(true);
-        setSeekTime(null); // Reset seek
+        // Simple cut for Prev for now, or just restart?
+        // Let's keep logic simple: Fade to previous track
+        const currentIdx = activeDeck === 'A' ? trackIndexA : trackIndexB;
+        const prevIdx = (currentIdx - 1 + tracks.length) % tracks.length;
+
+        const nextDeck = activeDeck === 'A' ? 'B' : 'A';
+
+        if (nextDeck === 'A') {
+            setTrackIndexA(prevIdx);
+            setIsPlayingA(true);
+        } else {
+            setTrackIndexB(prevIdx);
+            setIsPlayingB(true);
+        }
+
+        setActiveDeck(nextDeck);
+        fadeTo(nextDeck);
     };
 
-    const handleProgress = (current: number, total: number) => {
-        setCurrentTime(current);
-        setDuration(total);
-        // Reset seekTime once we see that the time has updated close to it?
-        // Actually, react-youtube seekTo works best if we just trigger it once.
-        // We can pass a changing value (like valid number) to trigger useEffect.
+    // We only want progress updates from the ACTIVE deck to drive the UI
+    const handleProgress = (deck: Deck) => (current: number, total: number) => {
+        if (deck === activeDeck) {
+            setCurrentTime(current);
+            setDuration(total);
+        }
     };
 
     const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -148,24 +222,44 @@ export default function Home() {
                             isCinemaMode ? "fixed inset-0 z-50 w-full h-full rounded-none border-none bg-black" : "w-80 h-80 md:w-96 md:h-96"
                         )}
                     >
-                        <BackgroundAudio
-                            videoId={currentTrack.videoId}
-                            isPlaying={isPlaying}
-                            volume={volume}
-                            introSkip={currentTrack.introSkip}
-                            outroSkip={currentTrack.outroSkip}
-                            disableAutoSkip={isListening} // Disable timer-based skip if AI is listening
-                            seekTime={seekTime}
-                            onEnded={handleNext}
-                            onProgress={handleProgress}
-                            className={clsx(
-                                "absolute inset-0 w-full h-full",
-                                // In cinema mode, allow pointer events for controls if needed, but keeping consistent UI is better.
-                                // Let's keep pointer-events-none for standard view to avoid YT UI interference.
-                                // Actually, for cinema mode, user might want to see video clearly.
-                                !isCinemaMode && "pointer-events-none"
-                            )}
-                        />
+                        {/* Deck A */}
+                        <div className={clsx("absolute inset-0 transition-opacity duration-500", activeDeck === 'A' ? "opacity-100 z-10" : "opacity-0 z-0")}>
+                            <BackgroundAudio
+                                videoId={tracks[trackIndexA].videoId}
+                                isPlaying={isPlayingA}
+                                volume={volA}
+                                introSkip={tracks[trackIndexA].introSkip}
+                                outroSkip={tracks[trackIndexA].outroSkip}
+                                disableAutoSkip={isListening}
+                                seekTime={activeDeck === 'A' ? seekTime : null}
+                                onEnded={handleNext}
+                                onProgress={handleProgress('A')}
+                                className="w-full h-full"
+                            />
+                        </div>
+
+                        {/* Deck B */}
+                        <div className={clsx("absolute inset-0 transition-opacity duration-500", activeDeck === 'B' ? "opacity-100 z-10" : "opacity-0 z-0")}>
+                            <BackgroundAudio
+                                videoId={tracks[trackIndexB].videoId}
+                                isPlaying={isPlayingB}
+                                volume={volB}
+                                introSkip={tracks[trackIndexB].introSkip}
+                                outroSkip={tracks[trackIndexB].outroSkip}
+                                disableAutoSkip={isListening}
+                                seekTime={activeDeck === 'B' ? seekTime : null}
+                                onEnded={handleNext}
+                                onProgress={handleProgress('B')}
+                                className="w-full h-full"
+                            />
+                        </div>
+
+                        {/* Visual Overlay - Only allows clicks if NOT cinema mode (strictly speaking visualizer might block clicks if not careful) */}
+                        <div className={clsx(
+                            "absolute inset-0 w-full h-full",
+                            !isCinemaMode && "pointer-events-none" // Pass clicks to YouTube only in Cinema Mode? Or never?
+                            // Actually, let's keep interactions blocked for standard view to keep it clean.
+                        )} />
                         {/* Overlay Gradient (Only in non-cinema mode or minimal in cinema) */}
                         <div className={clsx(
                             "absolute inset-0 pointer-events-none transition-opacity duration-300",
@@ -211,7 +305,7 @@ export default function Home() {
                     </div>
 
                     <PlayerControls
-                        isPlaying={isPlaying}
+                        isPlaying={activeDeck === 'A' ? isPlayingA : isPlayingB}
                         onPlayPause={togglePlay}
                         onNext={handleNext}
                         onPrev={handlePrev}
@@ -233,7 +327,7 @@ export default function Home() {
                             <p className="text-electric-cyan text-xs tracking-widest">{currentTrack.artist}</p>
                         </div>
                         <PlayerControls
-                            isPlaying={isPlaying}
+                            isPlaying={activeDeck === 'A' ? isPlayingA : isPlayingB}
                             onPlayPause={togglePlay}
                             onNext={handleNext}
                             onPrev={handlePrev}
