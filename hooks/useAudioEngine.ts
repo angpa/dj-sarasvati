@@ -152,12 +152,39 @@ export function useAudioEngine() {
         setState(prev => ({ ...prev, crossfade: clamped }));
     }, []);
 
+    // Beat Detection
+    const [beat, setBeat] = useState(false);
+
+    const analyzeBeat = useCallback(() => {
+        if (!analyserRef.current) return;
+        const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
+        analyserRef.current.getByteFrequencyData(dataArray);
+
+        // Analyze sub-bass (first 10 bins, approx 0-200Hz depending on sample rate/fft)
+        const lowEnd = dataArray.slice(0, 10);
+        const avgLow = lowEnd.reduce((a, b) => a + b) / lowEnd.length;
+
+        // Dynamic threshold or fixed for now as per request > 210
+        if (avgLow > 210) {
+            setBeat(true);
+            setTimeout(() => setBeat(false), 100);
+        }
+        requestAnimationFrame(analyzeBeat);
+    }, []);
+
+    useEffect(() => {
+        if (state.isReady) {
+            analyzeBeat();
+        }
+    }, [state.isReady, analyzeBeat]);
+
     return {
         ...state,
         loadTrack,
         play,
         pause,
         setCrossfade,
-        analyser: analyserRef.current
+        analyser: analyserRef.current,
+        beat // Export beat state
     };
 }

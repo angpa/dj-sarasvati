@@ -26,7 +26,7 @@ export default function Home() {
     // Engine Controls
     const {
         loadTrack, play, pause, setCrossfade,
-        analyser, isReady,
+        analyser, isReady, beat,
         deckA, deckB, crossfade: engineCrossfade
     } = useAudioEngine();
 
@@ -72,8 +72,8 @@ export default function Home() {
     useEffect(() => {
         if (activeDeckState.isPlaying && activeDeckState.duration > 0) {
             const remaining = activeDeckState.duration - activeDeckState.currentTime;
-            // Crossfade 5 seconds before end
-            if (remaining < 5 && remaining > 0.5) {
+            // Crossfade 8 seconds before end (Energy Mixing)
+            if (remaining < 8 && remaining > 0.5) {
                 // Trigger Next if not already doing so
                 // Check if B is not playing
                 const otherDeckStart = activeDeck === 'A' ? !isPlayingB : !isPlayingA;
@@ -251,6 +251,7 @@ export default function Home() {
                                 isPlaying={isPlayingA} // Sync video with audio state
                                 volume={0} // Muted
                                 muted={true} // Strict mute
+                                beat={beat}
                                 onEnded={() => { }} // Audio engine handles logic now
                                 className="w-full h-full"
                             />
@@ -263,6 +264,7 @@ export default function Home() {
                                 isPlaying={isPlayingB}
                                 volume={0}
                                 muted={true}
+                                beat={beat}
                                 onEnded={() => { }}
                                 className="w-full h-full"
                             />

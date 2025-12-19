@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import YouTube, { YouTubeEvent, YouTubePlayer } from 'react-youtube';
+import clsx from 'clsx';
 
 interface BackgroundAudioProps {
     videoId: string;
@@ -15,6 +16,7 @@ interface BackgroundAudioProps {
     className?: string;
     disableAutoSkip?: boolean;
     muted?: boolean;
+    beat?: boolean;
 }
 
 export default function BackgroundAudio({
@@ -28,7 +30,8 @@ export default function BackgroundAudio({
     onProgress,
     className,
     disableAutoSkip = false,
-    muted = false
+    muted = false,
+    beat = false
 }: BackgroundAudioProps) {
     const playerRef = useRef<YouTubePlayer | null>(null);
 
@@ -148,7 +151,10 @@ export default function BackgroundAudio({
                     // Force skip on fatal errors to avoid stuck state
                     onEnded();
                 }}
-                className="w-full h-full object-cover"
+                className={clsx(
+                    "w-full h-full object-cover transition-transform duration-75",
+                    isPlaying && beat ? "scale-105 brightness-125" : "scale-100 brightness-100"
+                )}
                 iframeClassName="w-full h-full object-cover"
             />
         </div>
