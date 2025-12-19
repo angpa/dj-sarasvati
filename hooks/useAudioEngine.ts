@@ -123,11 +123,15 @@ export function useAudioEngine() {
     const play = useCallback(async (deck: 'A' | 'B') => {
         const audio = deck === 'A' ? deckA_Ref.current : deckB_Ref.current;
         if (audio) {
-            // Resume context if needed
-            if (audioContextRef.current?.state === 'suspended') {
-                await audioContextRef.current.resume();
+            try {
+                // Resume context if needed
+                if (audioContextRef.current?.state === 'suspended') {
+                    await audioContextRef.current.resume();
+                }
+                await audio.play();
+            } catch (error) {
+                console.error(`Error playing Deck ${deck}:`, error);
             }
-            await audio.play();
         }
     }, []);
 

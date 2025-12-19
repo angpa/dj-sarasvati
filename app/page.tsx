@@ -93,8 +93,12 @@ export default function Home() {
 
     const handleEnter = async () => {
         setHasEntered(true);
-        // Play Deck A
-        setTimeout(() => play('A'), 1000); // Small delay to ensuring loading
+        // Play Deck A immediately to satisfy Autoplay policy
+        try {
+            await play('A');
+        } catch (e) {
+            console.error("Playback failed on enter:", e);
+        }
     };
 
     const togglePlay = () => {
