@@ -94,7 +94,11 @@ export default function BackgroundAudio({
     }, [isPlaying, onProgress, outroSkip, onEnded, disableAutoSkip]);
 
     const onReady = (event: YouTubeEvent) => {
+        console.log("Player Ready"); // Debug
         playerRef.current = event.target;
+
+        // Ensure player is unmuted and set volume
+        if (typeof event.target.unMute === 'function') event.target.unMute();
         event.target.setVolume(volume);
 
         if (isPlaying) {

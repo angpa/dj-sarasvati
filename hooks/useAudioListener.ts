@@ -132,10 +132,14 @@ export function useAudioListener(
             const source = audioContext.createMediaStreamSource(stream);
             sourceRef.current = source;
             source.connect(analyser);
-            // connect to destination if we want to hear it too? 
-            // Usually getDisplayMedia mutes the tab locally to avoid feedback loop if it's the same tab.
-            // But if we are capturing the tab, the audio is already playing. 
-            // We DO NOT want to connect to destination (speakers) as it will cause echo/feedback.
+
+            // Critical Fix: Connect to destination (speakers) because getDisplayMedia mutes the tab locally!
+            // We use a GainNode to control this if needed, but direct connection is simplest for now.
+            // WARNING: This theoretically can cause feedback if the speaker output is re-captured. 
+            // Chrome's "Share this tab" usually isolates the capture to specific DOM elements or handles echo cancellation,
+            // but infinite loop is possible if not careful. 
+            // Given "No Sound" report, this is the necessary step.
+            source.connect(audioContext.destination);
 
             setState(prev => ({
                 ...prev,
