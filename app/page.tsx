@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import GlassPlayer from "@/components/player/GlassPlayer";
 import AudioVisualizer from "@/components/scene/AudioVisualizer";
 import { Canvas } from "@react-three/fiber";
@@ -92,8 +92,23 @@ export default function Home() {
         else setIsPlayingB(!isPlayingB);
     };
 
+    // Use a ref to prevent double-triggering (debounce)
+    const isTransitioningRef = useRef(false);
+
     const handleNext = () => {
+        if (isTransitioningRef.current) {
+            console.log("Ignored handleNext (Transition in progress)");
+            return;
+        }
+
         console.log("Triggering Next Track Transition...");
+        isTransitioningRef.current = true;
+
+        // Unlock after a reasonable time (slightly less than crossfade to allow fast skipping if manual)
+        // But for auto-mix, we want to ensure we don't trigger again on the SAME silence.
+        setTimeout(() => {
+            isTransitioningRef.current = false;
+        }, 2000);
 
         // Determine Next Deck
         const nextDeck = activeDeck === 'A' ? 'B' : 'A';
@@ -112,8 +127,7 @@ export default function Home() {
         }
 
         // Start Crossfade
-        setActiveDeck(nextDeck); // Switch "Active" label immediately for Metadata? Or after?
-        // Let's switch metadata immediately so user sees what's coming/playing
+        setActiveDeck(nextDeck);
         fadeTo(nextDeck);
         setSeekTime(null);
     };

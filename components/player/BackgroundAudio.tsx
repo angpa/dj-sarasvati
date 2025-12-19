@@ -43,8 +43,13 @@ export default function BackgroundAudio({
 
     // Sync Volume
     useEffect(() => {
-        if (!playerRef.current) return;
-        playerRef.current.setVolume(volume);
+        try {
+            if (playerRef.current && typeof playerRef.current.setVolume === 'function') {
+                playerRef.current.setVolume(volume);
+            }
+        } catch (e) {
+            console.warn("Failed to set volume on player:", e);
+        }
     }, [volume]);
 
     // Sync Seek
