@@ -61,9 +61,25 @@ export default function Home() {
 
     // Initialize Audio Listener
     // Trigger next track on silence, with a very low threshold and 2s duration
+    // We also use a lastTriggered ref to throttle calls to prevent multiple triggers in short succession
+    const lastTriggerRef = useRef(0);
     const { startListening, isListening, volume: audioVolume, error: audioError } = useAudioListener(
         () => {
+            const now = Date.now();
+            if (now - lastTriggerRef.current < 5000) {
+                console.log("Throttled AI trigger (Too soon)");
+                return;
+            }
+
+            // Guard: Don't auto-mix if the track just started (buffering or quiet intro)
+            // Checks if we are within the first 10 seconds (and duration is known)
+            if (currentTime < 10 && duration > 0) {
+                console.log("Ignored AI silence (Track start safeguard)");
+                return;
+            }
+
             console.log("Auto-mixing triggered by audio analysis");
+            lastTriggerRef.current = now;
             handleNext();
         },
         0.01, // Threshold

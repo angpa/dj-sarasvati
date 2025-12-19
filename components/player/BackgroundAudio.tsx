@@ -32,19 +32,22 @@ export default function BackgroundAudio({
 
     // Sync Play/Pause state
     useEffect(() => {
-        if (!playerRef.current) return;
-
-        if (isPlaying) {
-            playerRef.current.playVideo();
-        } else {
-            playerRef.current.pauseVideo();
-        }
+        try {
+            if (playerRef.current && playerRef.current.internalPlayer) {
+                if (isPlaying) {
+                    playerRef.current.playVideo();
+                } else {
+                    playerRef.current.pauseVideo();
+                }
+            }
+        } catch (e) { console.warn("Player state sync failed", e); }
     }, [isPlaying]);
 
     // Sync Volume
     useEffect(() => {
         try {
-            if (playerRef.current && typeof playerRef.current.setVolume === 'function') {
+            // Check if player is truly ready and internal player exists
+            if (playerRef.current && playerRef.current.internalPlayer && typeof playerRef.current.setVolume === 'function') {
                 playerRef.current.setVolume(volume);
             }
         } catch (e) {
@@ -124,6 +127,11 @@ export default function BackgroundAudio({
                 opts={opts}
                 onReady={onReady}
                 onEnd={onEnded}
+                onError={(e) => {
+                    console.error("YouTube Player Error:", e);
+                    // Force skip on fatal errors to avoid stuck state
+                    onEnded();
+                }}
                 className="w-full h-full object-cover"
                 iframeClassName="w-full h-full object-cover"
             />
