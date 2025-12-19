@@ -34,6 +34,9 @@ export default function RootLayout({
                 <SceneBackground />
                 <div className="relative z-10 min-h-screen flex flex-col">
                     {children}
+                    <div className="fixed bottom-2 right-4 z-50 pointer-events-none opacity-30 text-[10px] font-mono tracking-widest text-white mix-blend-difference">
+                        v{process.env.NEXT_PUBLIC_APP_VERSION}
+                    </div>
                 </div>
             </body>
         </html>
