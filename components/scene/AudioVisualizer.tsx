@@ -5,25 +5,28 @@ import { useFrame } from "@react-three/fiber";
 import { Sphere, Box } from "@react-three/drei";
 import * as THREE from "three";
 
-export default function AudioVisualizer() {
+export default function AudioVisualizer({ audioVolume = 0 }: { audioVolume?: number }) {
     const groupRef = useRef<THREE.Group>(null);
 
     useFrame(({ clock }) => {
         if (groupRef.current) {
-            // Rotate the entire group slowly
-            groupRef.current.rotation.y = clock.getElapsedTime() * 0.1;
+            // Rotate the entire group slowly, speed up with volume
+            groupRef.current.rotation.y += 0.005 + (audioVolume * 0.05);
             groupRef.current.rotation.z = Math.sin(clock.getElapsedTime() * 0.2) * 0.1;
         }
     });
 
+    // Base scale + volume impact
+    const scale = 2 + (audioVolume * 1.5);
+
     return (
         <group ref={groupRef}>
             {/* Central "Sun" or Main Core */}
-            <Sphere args={[2, 32, 32]} position={[0, 0, 0]}>
+            <Sphere args={[scale, 32, 32]} position={[0, 0, 0]}>
                 <meshStandardMaterial
                     color="#000000"
                     emissive="#d946ef"
-                    emissiveIntensity={2}
+                    emissiveIntensity={2 + (audioVolume * 4)}
                     roughness={0.1}
                     metalness={1}
                 />
@@ -38,23 +41,23 @@ export default function AudioVisualizer() {
                 const z = Math.sin(angle) * radius;
 
                 return (
-                    <FloatingCrystal key={i} position={[x, y, z]} delay={i * 0.5} />
+                    <FloatingCrystal key={i} position={[x, y, z]} delay={i * 0.5} audioVolume={audioVolume} />
                 );
             })}
         </group>
     );
 }
 
-function FloatingCrystal({ position, delay }: { position: [number, number, number], delay: number }) {
+function FloatingCrystal({ position, delay, audioVolume }: { position: [number, number, number], delay: number, audioVolume: number }) {
     const ref = useRef<THREE.Mesh>(null);
 
     useFrame(({ clock }) => {
         if (ref.current) {
             // Individual rotation and bobbing
             const time = clock.getElapsedTime();
-            ref.current.rotation.x = time * 0.5 + delay;
+            ref.current.rotation.x = time * 0.5 + delay + (audioVolume * 2);
             ref.current.rotation.y = time * 0.3 + delay;
-            ref.current.position.y = position[1] + Math.sin(time + delay) * 1;
+            ref.current.position.y = position[1] + Math.sin(time + delay) * (1 + audioVolume * 2);
         }
     });
 

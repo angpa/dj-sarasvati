@@ -2,13 +2,15 @@
 
 import { useState } from "react";
 import GlassPlayer from "@/components/player/GlassPlayer";
+import AudioVisualizer from "@/components/scene/AudioVisualizer";
 import NeonButton from "@/components/ui/NeonButton";
 import TechText from "@/components/ui/TechText";
 import PlayerControls from "@/components/player/PlayerControls";
 import { tracks } from "@/data/tracks";
 import BackgroundAudio from "@/components/player/BackgroundAudio";
-import { Maximize2, Minimize2 } from "lucide-react";
+import { Maximize2, Minimize2, Mic } from "lucide-react";
 import clsx from "clsx";
+import { useAudioListener } from "@/hooks/useAudioListener";
 
 export default function Home() {
     const [hasEntered, setHasEntered] = useState(false);
@@ -22,9 +24,27 @@ export default function Home() {
 
     const currentTrack = tracks[currentTrackIndex];
 
-    const handleEnter = () => {
+    // Initialize Audio Listener
+    // Trigger next track on silence, with a very low threshold and 2s duration
+    const { startListening, isListening, volume: audioVolume, error: audioError } = useAudioListener(
+        () => {
+            console.log("Auto-mixing triggered by audio analysis");
+            handleNext();
+        },
+        0.01, // Threshold
+        2000  // Duration
+    );
+
+    const handleEnter = async () => {
         setHasEntered(true);
         setIsPlaying(true); // Auto-play on enter
+
+        // Attempt to start listening immediately
+        try {
+            await startListening();
+        } catch (e) {
+            console.warn("Audio listener failed to start:", e);
+        }
     };
 
     const togglePlay = () => {
@@ -90,9 +110,14 @@ export default function Home() {
                         <p className="text-electric-cyan/60 tracking-[0.5em] text-sm uppercase">. The Cosmic DJ .</p>
                     </div>
 
-                    <NeonButton onClick={handleEnter} className="mt-8 text-xl px-10 py-4" glow>
-                        ENTER EXPERIENCE
-                    </NeonButton>
+                    <div className="flex flex-col items-center gap-2">
+                        <NeonButton onClick={handleEnter} className="mt-8 text-xl px-10 py-4" glow>
+                            ENTER EXPERIENCE
+                        </NeonButton>
+                        <p className="text-white/30 text-xs max-w-md text-center mt-2">
+                            * Select "This Tab" and "Share Audio" when prompted to enable AI Auto-Mixing.
+                        </p>
+                    </div>
                 </div>
             </main>
         );
@@ -100,7 +125,21 @@ export default function Home() {
 
     return (
         <main className="flex min-h-screen flex-col items-center justify-center p-4 transition-opacity duration-1000">
+            {/* Audio Source Indicator */}
+            <div className="fixed top-4 right-4 flex items-center gap-2 z-50">
+                <div className={clsx(
+                    "w-2 h-2 rounded-full",
+                    isListening ? "bg-green-500 animate-pulse" : "bg-red-500"
+                )} />
+                <span className="text-xs font-mono text-white/50">
+                    {isListening ? "AI LISTENING" : "AI OFFLINE"}
+                </span>
+            </div>
+
             <GlassPlayer>
+                <div className="absolute inset-0 -z-10 opacity-30">
+                    <AudioVisualizer audioVolume={audioVolume} />
+                </div>
                 <div className="flex flex-col items-center text-center space-y-4 w-full">
                     {/* Video Container - Dynamic Size based on Cinema Mode */}
                     <div
@@ -115,6 +154,7 @@ export default function Home() {
                             volume={volume}
                             introSkip={currentTrack.introSkip}
                             outroSkip={currentTrack.outroSkip}
+                            disableAutoSkip={isListening} // Disable timer-based skip if AI is listening
                             seekTime={seekTime}
                             onEnded={handleNext}
                             onProgress={handleProgress}

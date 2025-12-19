@@ -13,6 +13,7 @@ interface BackgroundAudioProps {
     onEnded: () => void;
     onProgress?: (current: number, duration: number) => void;
     className?: string;
+    disableAutoSkip?: boolean;
 }
 
 export default function BackgroundAudio({
@@ -24,7 +25,8 @@ export default function BackgroundAudio({
     seekTime,
     onEnded,
     onProgress,
-    className
+    className,
+    disableAutoSkip = false
 }: BackgroundAudioProps) {
     const playerRef = useRef<YouTubePlayer | null>(null);
 
@@ -68,7 +70,7 @@ export default function BackgroundAudio({
 
                     // Check for Outro Skip
                     // Should be at least halfway through to avoid skipping immediately on broken metadata
-                    if (outroSkip > 0 && duration > 0 && current > duration / 2) {
+                    if (!disableAutoSkip && outroSkip > 0 && duration > 0 && current > duration / 2) {
                         if (duration - current <= outroSkip) {
                             console.log("Auto-skipping outro");
                             onEnded(); // Trigger next track
@@ -81,7 +83,7 @@ export default function BackgroundAudio({
         return () => {
             if (interval) clearInterval(interval);
         };
-    }, [isPlaying, onProgress, outroSkip, onEnded]);
+    }, [isPlaying, onProgress, outroSkip, onEnded, disableAutoSkip]);
 
     const onReady = (event: YouTubeEvent) => {
         playerRef.current = event.target;
