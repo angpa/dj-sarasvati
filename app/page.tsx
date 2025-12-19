@@ -3,6 +3,7 @@
 import { useState } from "react";
 import GlassPlayer from "@/components/player/GlassPlayer";
 import AudioVisualizer from "@/components/scene/AudioVisualizer";
+import { Canvas } from "@react-three/fiber";
 import NeonButton from "@/components/ui/NeonButton";
 import TechText from "@/components/ui/TechText";
 import PlayerControls from "@/components/player/PlayerControls";
@@ -211,8 +212,14 @@ export default function Home() {
             </div>
 
             <GlassPlayer>
-                <div className="absolute inset-0 -z-10 opacity-30">
-                    <AudioVisualizer audioVolume={audioVolume} />
+                <div className="absolute inset-0 -z-10 opacity-30 pointer-events-none">
+                    {/* The Canvas was missing! R3F hooks need a Canvas context. */}
+                    <div className="w-full h-full">
+                        <Canvas>
+                            <ambientLight intensity={0.5} />
+                            <AudioVisualizer audioVolume={audioVolume} />
+                        </Canvas>
+                    </div>
                 </div>
                 <div className="flex flex-col items-center text-center space-y-4 w-full">
                     {/* Video Container - Dynamic Size based on Cinema Mode */}
