@@ -127,7 +127,7 @@ export default function BackgroundAudio({
                 opts={opts}
                 onReady={onReady}
                 onEnd={onEnded}
-                onError={(e) => {
+                onError={(e: any) => {
                     console.error("YouTube Player Error:", e);
                     // Force skip on fatal errors to avoid stuck state
                     onEnded();
