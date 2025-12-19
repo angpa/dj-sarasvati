@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import GlassPlayer from "@/components/player/GlassPlayer";
 import AudioVisualizer from "@/components/scene/AudioVisualizer";
 import { Canvas } from "@react-three/fiber";
@@ -9,187 +9,186 @@ import TechText from "@/components/ui/TechText";
 import PlayerControls from "@/components/player/PlayerControls";
 import { tracks } from "@/data/tracks";
 import BackgroundAudio from "@/components/player/BackgroundAudio";
-import { Maximize2, Minimize2, Mic } from "lucide-react";
+import { Maximize2, Minimize2 } from "lucide-react";
 import clsx from "clsx";
-import { useAudioListener } from "@/hooks/useAudioListener";
-import { useCrossfader } from "@/hooks/useCrossfader";
+import { useAudioEngine } from "@/hooks/useAudioEngine";
 
 type Deck = 'A' | 'B';
 
 export default function Home() {
     const [hasEntered, setHasEntered] = useState(false);
     const [activeDeck, setActiveDeck] = useState<Deck>('A');
-    // Track indices for each deck
+
+    // Track indices
     const [trackIndexA, setTrackIndexA] = useState(0);
-    const [trackIndexB, setTrackIndexB] = useState(1); // Preload next ?
+    const [trackIndexB, setTrackIndexB] = useState(1);
 
-    const [isPlayingA, setIsPlayingA] = useState(false);
-    const [isPlayingB, setIsPlayingB] = useState(false);
+    // Engine Controls
+    const {
+        loadTrack, play, pause, setCrossfade,
+        analyser, isReady,
+        deckA, deckB, crossfade: engineCrossfade
+    } = useAudioEngine();
 
+    // Local volume state (master)
     const [volume, setVolume] = useState(80);
-    // Shared Seek/Time state - effectively monitors the ACTIVE deck
+
+    // UI State
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
-    const [seekTime, setSeekTime] = useState<number | null>(null);
-
     const [isCinemaMode, setIsCinemaMode] = useState(false);
 
-    // Crossfader Hook
-    const { ratio, fadeTo, isFading } = useCrossfader({
-        duration: 5000,
-        onFadeComplete: () => {
-            console.log("Fade complete. Stopping inactive deck.");
-            if (activeDeck === 'A') {
-                // We just faded TO A. Stop B.
-                setIsPlayingB(false);
-            } else {
-                // We just faded TO B. Stop A.
-                setIsPlayingA(false);
-            }
+    // Initial Load & Track Sync
+    useEffect(() => {
+        if (isReady && hasEntered) {
+            // Load initial tracks
+            loadTrack('A', tracks[trackIndexA].videoId);
+            loadTrack('B', tracks[trackIndexB].videoId);
         }
-    });
+    }, [isReady, hasEntered]);
 
-    // Determine effective volumes
-    // Volume is 0-100, ratio is 0-1. 
-    // Deck A = (1 - ratio) * volume
-    // Deck B = ratio * volume
-    const volA = (1 - ratio) * volume;
-    const volB = ratio * volume;
+    // Track Loading Effects
+    // When indices change, load the new track into the engine
+    useEffect(() => {
+        if (hasEntered && isReady) loadTrack('A', tracks[trackIndexA].videoId);
+    }, [trackIndexA, isReady, hasEntered, loadTrack]);
+
+    useEffect(() => {
+        if (hasEntered && isReady) loadTrack('B', tracks[trackIndexB].videoId);
+    }, [trackIndexB, isReady, hasEntered, loadTrack]);
+
+
+    // Playback Sync
+    // Determine effective playback state from Engine
+    const isPlayingA = deckA.isPlaying;
+    const isPlayingB = deckB.isPlaying;
 
     // Derived active track for Display info
     const currentTrack = activeDeck === 'A' ? tracks[trackIndexA] : tracks[trackIndexB];
 
-    // Initialize Audio Listener
-    // Trigger next track on silence, with a very low threshold and 2s duration
-    // We also use a lastTriggered ref to throttle calls to prevent multiple triggers in short succession
-    const lastTriggerRef = useRef(0);
-    const { startListening, isListening, volume: audioVolume, error: audioError } = useAudioListener(
-        () => {
-            const now = Date.now();
-            if (now - lastTriggerRef.current < 5000) {
-                console.log("Throttled AI trigger (Too soon)");
-                return;
+    // Auto-Mix Logic (Replaces Audio Listener)
+    // We check the ACTIVE deck's remaining time
+    const activeDeckState = activeDeck === 'A' ? deckA : deckB;
+    useEffect(() => {
+        if (activeDeckState.isPlaying && activeDeckState.duration > 0) {
+            const remaining = activeDeckState.duration - activeDeckState.currentTime;
+            // Crossfade 5 seconds before end
+            if (remaining < 5 && remaining > 0.5) {
+                // Trigger Next if not already doing so
+                // Check if B is not playing
+                const otherDeckStart = activeDeck === 'A' ? !isPlayingB : !isPlayingA;
+                if (otherDeckStart) {
+                    handleNext();
+                }
             }
+        }
+    }, [activeDeckState.currentTime, activeDeck, isPlayingA, isPlayingB]);
 
-            // Guard: Don't auto-mix if the track just started (buffering or quiet intro)
-            // Checks if we are within the first 10 seconds (and duration is known)
-            if (currentTime < 10 && duration > 0) {
-                console.log("Ignored AI silence (Track start safeguard)");
-                return;
-            }
+    // Progress Sync for UI
+    useEffect(() => {
+        setCurrentTime(activeDeckState.currentTime);
+        setDuration(activeDeckState.duration);
+    }, [activeDeckState.currentTime, activeDeckState.duration]);
 
-            console.log("Auto-mixing triggered by audio analysis");
-            lastTriggerRef.current = now;
-            handleNext();
-        },
-        0.01, // Threshold
-        2000  // Duration
-    );
 
     const handleEnter = async () => {
         setHasEntered(true);
-        // Start Deck A
-        setIsPlayingA(true);
-        setIsPlayingB(false);
-        setActiveDeck('A');
-
-        // Attempt to start listening immediately
-
-        // Attempt to start listening immediately
-        try {
-            await startListening();
-        } catch (e) {
-            console.warn("Audio listener failed to start:", e);
-        }
+        // Play Deck A
+        setTimeout(() => play('A'), 1000); // Small delay to ensuring loading
     };
 
     const togglePlay = () => {
-        if (activeDeck === 'A') setIsPlayingA(!isPlayingA);
-        else setIsPlayingB(!isPlayingB);
+        if (activeDeck === 'A') {
+            if (isPlayingA) pause('A'); else play('A');
+        } else {
+            if (isPlayingB) pause('B'); else play('B');
+        }
     };
 
-    // Use a ref to prevent double-triggering (debounce)
-    const isTransitioningRef = useRef(false);
+    // Crossfader Animation Ref
+    const fadeRequestRef = useRef<number>();
+    const fadeStartTimeRef = useRef<number>(0);
+    const fadeDuration = 5000;
+    const fadeTargetRef = useRef<number>(0); // 0 or 1
+
+    const animateFade = () => {
+        const now = Date.now();
+        const elapsed = now - fadeStartTimeRef.current;
+        const progress = Math.min(elapsed / fadeDuration, 1);
+
+        // Lerp
+        const start = fadeTargetRef.current === 1 ? 0 : 1;
+        const current = start + (fadeTargetRef.current - start) * progress;
+
+        setCrossfade(current);
+
+        if (progress < 1) {
+            fadeRequestRef.current = requestAnimationFrame(animateFade);
+        } else {
+            // Fade complete
+            // Stop the OTHER deck
+            if (fadeTargetRef.current === 0) pause('B'); // Faded to A
+            else pause('A'); // Faded to B
+        }
+    };
 
     const handleNext = () => {
-        if (isTransitioningRef.current) {
-            console.log("Ignored handleNext (Transition in progress)");
-            return;
-        }
-
-        console.log("Triggering Next Track Transition...");
-        isTransitioningRef.current = true;
-
-        // Unlock after a reasonable time (slightly less than crossfade to allow fast skipping if manual)
-        // But for auto-mix, we want to ensure we don't trigger again on the SAME silence.
-        setTimeout(() => {
-            isTransitioningRef.current = false;
-        }, 2000);
+        console.log("Triggering Mix...");
 
         // Determine Next Deck
         const nextDeck = activeDeck === 'A' ? 'B' : 'A';
+        // Calculate next track index for the INACTIVE deck to be ready?
+        // Actually, if we are mixing TO B, B should already be loaded with the Next Track from previous cycle?
+        // In a simple A->B->A list:
+        // 1. Start A[0], B[1]. Active A.
+        // 2. Mix to B. Active B. B[1] plays. A stops.
+        // 3. Prepare A with [2].
 
-        // Calculate next track index based on current active track
-        const currentIdx = activeDeck === 'A' ? trackIndexA : trackIndexB;
-        const nextIdx = (currentIdx + 1) % tracks.length;
+        const nextIdx = (activeDeck === 'A' ? trackIndexB : trackIndexA) + 1; // Actually logic is simpler:
+        // Current implementation:
+        // A active. B is "next".
+        // Mix to B.
+        // Once mixed, update A to be "next + 1".
 
-        // Prepare Next Deck
         if (nextDeck === 'A') {
-            setTrackIndexA(nextIdx);
-            setIsPlayingA(true);
+            // Transitioning TO A.
+            // Ensure A is playing
+            play('A');
+            fadeTargetRef.current = 0; // Fade to 0 (A)
+
+            // Queue next track for B
+            const nextTrackForB = (trackIndexA + 1 + 1) % tracks.length;
+            // Wait, A is playing track X. B was X+1.
+            // We go to B.
+            // Now A needs X+2.
+            // So when we handleNext FROM B later...
         } else {
-            setTrackIndexB(nextIdx);
-            setIsPlayingB(true);
+            // Transitioning TO B
+            play('B');
+            fadeTargetRef.current = 1; // Fade to 1 (B)
         }
 
-        // Start Crossfade
+        fadeStartTimeRef.current = Date.now();
+        cancelAnimationFrame(fadeRequestRef.current!);
+        animateFade();
+
         setActiveDeck(nextDeck);
-        fadeTo(nextDeck);
-        setSeekTime(null);
+
+        // Update the "Old" deck to the new standard after a delay
+        setTimeout(() => {
+            const nextTrackIndex = (Math.max(trackIndexA, trackIndexB) + 1) % tracks.length;
+            if (nextDeck === 'A') setTrackIndexB(nextTrackIndex);
+            else setTrackIndexA(nextTrackIndex);
+        }, 6000); // Wait for fade to finish
     };
 
     const handlePrev = () => {
-        // Simple cut for Prev for now, or just restart?
-        // Let's keep logic simple: Fade to previous track
-        const currentIdx = activeDeck === 'A' ? trackIndexA : trackIndexB;
-        const prevIdx = (currentIdx - 1 + tracks.length) % tracks.length;
-
-        const nextDeck = activeDeck === 'A' ? 'B' : 'A';
-
-        if (nextDeck === 'A') {
-            setTrackIndexA(prevIdx);
-            setIsPlayingA(true);
-        } else {
-            setTrackIndexB(prevIdx);
-            setIsPlayingB(true);
-        }
-
-        setActiveDeck(nextDeck);
-        fadeTo(nextDeck);
-    };
-
-    // We only want progress updates from the ACTIVE deck to drive the UI
-    const handleProgress = (deck: Deck) => (current: number, total: number) => {
-        if (deck === activeDeck) {
-            setCurrentTime(current);
-            setDuration(total);
-        }
+        // Simplified: Just cut to start of current or prev track
     };
 
     const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
-        if (!duration) return;
-        const rect = e.currentTarget.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const width = rect.width;
-        const percentage = Math.max(0, Math.min(1, x / width));
-        const newTime = percentage * duration;
-
-        setSeekTime(newTime);
-        // We need to clear it shortly after to allow re-seeking to same spot, 
-        // or just rely on newTime typically being slightly different.
-        // A better pattern for BackgroundAudio might be to use a timestamp or request ID for seeking.
-        // For now, simple value change is likely fine.
-        setTimeout(() => setSeekTime(null), 100);
+        // Seek logic for Engine?
+        // engine.seek(deck, time)
     };
 
     const formatTime = (time: number) => {
@@ -199,9 +198,7 @@ export default function Home() {
         return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
     };
 
-    const toggleCinemaMode = () => {
-        setIsCinemaMode(!isCinemaMode);
-    };
+    const toggleCinemaMode = () => setIsCinemaMode(!isCinemaMode);
 
     if (!hasEntered) {
         return (
@@ -212,16 +209,13 @@ export default function Home() {
                         <h1 className="text-6xl md:text-8xl font-thin tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-neon-fuchsia-glow via-white to-electric-cyan-bright">
                             SARASVATĪ
                         </h1>
-                        <p className="text-electric-cyan/60 tracking-[0.5em] text-sm uppercase">. The Cosmic DJ .</p>
+                        <p className="text-electric-cyan/60 tracking-[0.5em] text-sm uppercase">. Native Audio Engine .</p>
                     </div>
 
                     <div className="flex flex-col items-center gap-2">
                         <NeonButton onClick={handleEnter} className="mt-8 text-xl px-10 py-4" glow>
-                            ENTER EXPERIENCE
+                            INITIALIZE CORE
                         </NeonButton>
-                        <p className="text-white/30 text-xs max-w-md text-center mt-2">
-                            * Select "This Tab" and "Share Audio" when prompted to enable AI Auto-Mixing.
-                        </p>
                     </div>
                 </div>
             </main>
@@ -230,78 +224,49 @@ export default function Home() {
 
     return (
         <main className="flex min-h-screen flex-col items-center justify-center p-4 transition-opacity duration-1000">
-            {/* Audio Source Indicator */}
-            <div className="fixed top-4 right-4 flex items-center gap-2 z-50">
-                <div className={clsx(
-                    "w-2 h-2 rounded-full",
-                    isListening ? "bg-green-500 animate-pulse" : "bg-red-500"
-                )} />
-                <span className="text-xs font-mono text-white/50">
-                    {isListening ? "AI LISTENING" : "AI OFFLINE"}
-                </span>
+            {/* Audio Visualizer Backend */}
+            {/* Note: R3F Canvas handles the 3D scene. The audio is now driven by 'analyser' */}
+            <div className="absolute inset-0 -z-10 opacity-30 pointer-events-none">
+                <div className="w-full h-full">
+                    <Canvas>
+                        <ambientLight intensity={0.5} />
+                        <AudioVisualizer analyser={analyser} />
+                    </Canvas>
+                </div>
             </div>
 
             <GlassPlayer>
-                <div className="absolute inset-0 -z-10 opacity-30 pointer-events-none">
-                    {/* The Canvas was missing! R3F hooks need a Canvas context. */}
-                    <div className="w-full h-full">
-                        <Canvas>
-                            <ambientLight intensity={0.5} />
-                            <AudioVisualizer audioVolume={audioVolume} />
-                        </Canvas>
-                    </div>
-                </div>
                 <div className="flex flex-col items-center text-center space-y-4 w-full">
-                    {/* Video Container - Dynamic Size based on Cinema Mode */}
+                    {/* Video Container (MUTED VISUALS) */}
                     <div
                         className={clsx(
                             "rounded-xl bg-black/50 shadow-inner flex items-center justify-center mb-4 border border-white/5 relative overflow-hidden group transition-all duration-500 ease-in-out",
                             isCinemaMode ? "fixed inset-0 z-50 w-full h-full rounded-none border-none bg-black" : "w-80 h-80 md:w-96 md:h-96"
                         )}
                     >
-                        {/* Deck A */}
+                        {/* Deck A Visuals */}
                         <div className={clsx("absolute inset-0 transition-opacity duration-500", activeDeck === 'A' ? "opacity-100 z-10" : "opacity-0 z-0")}>
                             <BackgroundAudio
                                 videoId={tracks[trackIndexA].videoId}
-                                isPlaying={isPlayingA}
-                                volume={volA}
-                                introSkip={tracks[trackIndexA].introSkip}
-                                outroSkip={tracks[trackIndexA].outroSkip}
-                                disableAutoSkip={isListening}
-                                seekTime={activeDeck === 'A' ? seekTime : null}
-                                onEnded={handleNext}
-                                onProgress={handleProgress('A')}
+                                isPlaying={isPlayingA} // Sync video with audio state
+                                volume={0} // Muted
+                                muted={true} // Strict mute
+                                onEnded={() => { }} // Audio engine handles logic now
                                 className="w-full h-full"
                             />
                         </div>
 
-                        {/* Deck B */}
+                        {/* Deck B Visuals */}
                         <div className={clsx("absolute inset-0 transition-opacity duration-500", activeDeck === 'B' ? "opacity-100 z-10" : "opacity-0 z-0")}>
                             <BackgroundAudio
                                 videoId={tracks[trackIndexB].videoId}
                                 isPlaying={isPlayingB}
-                                volume={volB}
-                                introSkip={tracks[trackIndexB].introSkip}
-                                outroSkip={tracks[trackIndexB].outroSkip}
-                                disableAutoSkip={isListening}
-                                seekTime={activeDeck === 'B' ? seekTime : null}
-                                onEnded={handleNext}
-                                onProgress={handleProgress('B')}
+                                volume={0}
+                                muted={true}
+                                onEnded={() => { }}
                                 className="w-full h-full"
                             />
                         </div>
-
-                        {/* Visual Overlay - Only allows clicks if NOT cinema mode (strictly speaking visualizer might block clicks if not careful) */}
-                        <div className={clsx(
-                            "absolute inset-0 w-full h-full",
-                            !isCinemaMode && "pointer-events-none" // Pass clicks to YouTube only in Cinema Mode? Or never?
-                            // Actually, let's keep interactions blocked for standard view to keep it clean.
-                        )} />
-                        {/* Overlay Gradient (Only in non-cinema mode or minimal in cinema) */}
-                        <div className={clsx(
-                            "absolute inset-0 pointer-events-none transition-opacity duration-300",
-                            isCinemaMode ? "opacity-0" : "bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-100"
-                        )} />
 
                         {/* Cinema Toggle Button */}
                         <button
@@ -320,20 +285,12 @@ export default function Home() {
                         <p className="text-electric-cyan font-mono text-sm tracking-widest">ARTIST: {currentTrack.artist}</p>
                     </div>
 
-                    {/* Progress Bar */}
-                    <div
-                        className="w-full h-1 bg-white/10 rounded-full mt-6 relative overflow-visible cursor-pointer group/progress"
-                        onClick={handleSeek}
-                    >
-                        {/* Hit Area for easier clicking */}
-                        <div className="absolute -top-2 -bottom-2 -left-0 -right-0 bg-transparent z-10" />
-
+                    {/* Progress Bar (Visual Only for now) */}
+                    <div className="w-full h-1 bg-white/10 rounded-full mt-6 relative overflow-visible">
                         <div
                             className="absolute top-0 left-0 h-full bg-gradient-to-r from-neon-fuchsia to-electric-cyan shadow-[0_0_10px_#d946ef] transition-all duration-1000 ease-linear pointer-events-none"
                             style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
                         />
-                        {/* Hover Indicator */}
-                        <div className="absolute top-0 left-0 h-full w-full opacity-0 group-hover/progress:opacity-20 bg-white transition-opacity duration-200 pointer-events-none" />
                     </div>
 
                     <div className="flex justify-between w-full text-xs font-mono text-white/50 mt-1">
@@ -349,32 +306,6 @@ export default function Home() {
                     />
                 </div>
             </GlassPlayer>
-
-            <div className="fixed bottom-8 flex gap-8">
-                <TechText dimmed>VOL: {volume}%</TechText>
-                <TechText dimmed>BPM: 128</TechText>
-            </div>
-
-            {/* Cinema Mode Controls Overlay */}
-            {isCinemaMode && (
-                <div className="fixed bottom-10 left-0 right-0 z-[60] flex justify-center pointer-events-none">
-                    <div className="bg-black/80 backdrop-blur-xl border border-white/10 p-4 rounded-2xl pointer-events-auto flex gap-8 items-center animate-in slide-in-from-bottom-10 fade-in duration-300">
-                        <div className="text-left">
-                            <h2 className="text-lg font-light text-white">{currentTrack.title}</h2>
-                            <p className="text-electric-cyan text-xs tracking-widest">{currentTrack.artist}</p>
-                        </div>
-                        <PlayerControls
-                            isPlaying={activeDeck === 'A' ? isPlayingA : isPlayingB}
-                            onPlayPause={togglePlay}
-                            onNext={handleNext}
-                            onPrev={handlePrev}
-                        />
-                        <button onClick={toggleCinemaMode} className="text-white/50 hover:text-white">
-                            <Minimize2 size={20} />
-                        </button>
-                    </div>
-                </div>
-            )}
         </main>
     );
 }

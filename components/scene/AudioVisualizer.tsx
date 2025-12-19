@@ -1,77 +1,172 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
-import { Sphere, Box } from "@react-three/drei";
+import { Sphere, Box, Icosahedron } from "@react-three/drei";
 import * as THREE from "three";
+import { EffectComposer, Bloom, ChromaticAberration, Noise } from "@react-three/postprocessing";
 
-export default function AudioVisualizer({ audioVolume = 0 }: { audioVolume?: number }) {
-    const groupRef = useRef<THREE.Group>(null);
+// Helper to get average volume from analyser
+const getAverageVolume = (analyser: AnalyserNode | null, dataArray: Uint8Array) => {
+    if (!analyser) return 0;
+    try {
+        analyser.getByteFrequencyData(dataArray);
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+            sum += dataArray[i];
+        }
+        return sum / dataArray.length; // 0-255
+    } catch (e) {
+        return 0;
+    }
+};
 
-    useFrame(({ clock }) => {
-        if (groupRef.current) {
-            // Rotate the entire group slowly, speed up with volume
-            groupRef.current.rotation.y += 0.005 + (audioVolume * 0.05);
-            groupRef.current.rotation.z = Math.sin(clock.getElapsedTime() * 0.2) * 0.1;
+export default function AudioVisualizer({ analyser }: { analyser: AnalyserNode | null }) {
+    const meshRef = useRef<THREE.Mesh>(null);
+    const ringsRef = useRef<THREE.Group>(null);
+
+    // Data array for frequency analysis
+    const dataArray = useMemo(() => {
+        return new Uint8Array(analyser ? analyser.frequencyBinCount : 128);
+    }, [analyser]);
+
+    useFrame((state) => {
+        const time = state.clock.getElapsedTime();
+
+        // Calculate volume
+        let volume = 0;
+        if (analyser) {
+            volume = getAverageVolume(analyser, dataArray); // 0-255
+        }
+
+        // Normalized volume 0-1 (approx)
+        const normVol = volume / 100;
+
+        if (meshRef.current) {
+            // Pulse based on real volume
+            const scale = 2 + normVol * 1.5;
+            meshRef.current.scale.setScalar(scale);
+            meshRef.current.rotation.x = time * 0.5;
+            meshRef.current.rotation.y = time * 0.3;
+            (meshRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity = 2 + normVol * 4;
+        }
+
+        if (ringsRef.current) {
+            ringsRef.current.rotation.z = time * 0.1;
+            ringsRef.current.children.forEach((child, i) => {
+                const ring = child as THREE.Mesh;
+                // Add wave effect to rings
+                // const z = Math.sin(time * 2 + i) * normVol * 2;
+                // ring.position.z = z;
+
+                // Distort rings based on volume
+                ring.scale.x = 1 + Math.sin(time * 2 + i) * 0.1 + (normVol * 0.5);
+                ring.scale.z = 1 + Math.cos(time * 2 + i) * 0.1 + (normVol * 0.5);
+
+                // Color shift based on intensity
+                (ring.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.5 + normVol * 2;
+            });
         }
     });
 
-    // Base scale + volume impact
-    const scale = 2 + (audioVolume * 1.5);
+    return (
+        <>
+            <group>
+                <Sphere ref={meshRef} args={[1, 32, 32]}>
+                    <meshStandardMaterial
+                        color="#000000"
+                        emissive="#d946ef"
+                        emissiveIntensity={2}
+                        roughness={0.1}
+                        metalness={1}
+                    />
+                </Sphere>
+
+                <group ref={ringsRef}>
+                    {[...Array(3)].map((_, i) => (
+                        <Box key={i} args={[3.5 + i * 1.5, 0.1, 3.5 + i * 1.5]} rotation={[0.5, 0, 0]}>
+                            <meshStandardMaterial
+                                color="#ff00ff"
+                                emissive="#00ffff"
+                                emissiveIntensity={0.5}
+                                transparent
+                                opacity={0.3}
+                            />
+                        </Box>
+                    ))}
+                </group>
+
+                {/* Particles */}
+                <FloatingCrystals analyser={analyser} dataArray={dataArray} />
+            </group>
+
+            <EffectComposer>
+                <Bloom luminanceThreshold={0.5} luminanceSmoothing={0.9} height={300} intensity={2.5} />
+                <Noise opacity={0.05} />
+                <ChromaticAberration offset={[0.002, 0.002] as any} />
+            </EffectComposer>
+        </>
+    );
+}
+
+function FloatingCrystals({ analyser, dataArray }: { analyser: AnalyserNode | null, dataArray: Uint8Array }) {
+    const groupRef = useRef<THREE.Group>(null);
+
+    useFrame((state) => {
+        const time = state.clock.getElapsedTime();
+        let volume = 0;
+        if (analyser) {
+            // We reuse the dataArray from parent but it might be updated already? 
+            // Better to re-calculate or accept that it's shared buffer.
+            // For simplicity, re-calculate here is fine as it's cheap sum loop.
+            // Actually, we can just pass the volume if we calculated it in parent, but passing props is cheaper than context.
+            try {
+                // Re-get data is safe
+                analyser.getByteFrequencyData(dataArray);
+                let sum = 0;
+                for (let i = 0; i < dataArray.length; i++) {
+                    sum += dataArray[i];
+                }
+                volume = (sum / dataArray.length) / 100;
+            } catch (e) { }
+        }
+
+        if (groupRef.current) {
+            groupRef.current.rotation.y = time * 0.1;
+            groupRef.current.children.forEach((child, i) => {
+                const radius = 8;
+                const angle = (i / 6) * Math.PI * 2;
+                const yBase = Math.sin(angle * 2) * 2;
+
+                const y = yBase + Math.sin(time + i * 10) * (1 + volume * 2);
+                child.position.y = y;
+
+                (child as THREE.Mesh).rotation.x = time * 0.5 + i;
+                (child as THREE.Mesh).rotation.y = time * 0.3;
+            });
+        }
+    });
 
     return (
         <group ref={groupRef}>
-            {/* Central "Sun" or Main Core */}
-            <Sphere args={[scale, 32, 32]} position={[0, 0, 0]}>
-                <meshStandardMaterial
-                    color="#000000"
-                    emissive="#d946ef"
-                    emissiveIntensity={2 + (audioVolume * 4)}
-                    roughness={0.1}
-                    metalness={1}
-                />
-            </Sphere>
-
-            {/* Floating Geometries around */}
             {[...Array(6)].map((_, i) => {
                 const radius = 8;
                 const angle = (i / 6) * Math.PI * 2;
                 const x = Math.cos(angle) * radius;
-                const y = Math.sin(angle * 2) * 2;
                 const z = Math.sin(angle) * radius;
 
                 return (
-                    <FloatingCrystal key={i} position={[x, y, z]} delay={i * 0.5} audioVolume={audioVolume} />
-                );
+                    <Box key={i} args={[1, 1, 1]} position={[x, 0, z]}>
+                        <meshStandardMaterial
+                            color="#22d3ee"
+                            emissive="#06b6d4"
+                            emissiveIntensity={0.5}
+                            transparent
+                            opacity={0.8}
+                        />
+                    </Box>
+                )
             })}
         </group>
-    );
-}
-
-function FloatingCrystal({ position, delay, audioVolume }: { position: [number, number, number], delay: number, audioVolume: number }) {
-    const ref = useRef<THREE.Mesh>(null);
-
-    useFrame(({ clock }) => {
-        if (ref.current) {
-            // Individual rotation and bobbing
-            const time = clock.getElapsedTime();
-            ref.current.rotation.x = time * 0.5 + delay + (audioVolume * 2);
-            ref.current.rotation.y = time * 0.3 + delay;
-            ref.current.position.y = position[1] + Math.sin(time + delay) * (1 + audioVolume * 2);
-        }
-    });
-
-    return (
-        <Box ref={ref} args={[1, 1, 1]} position={position}>
-            <meshStandardMaterial
-                color="#22d3ee"
-                emissive="#06b6d4"
-                emissiveIntensity={0.5}
-                transparent
-                opacity={0.8}
-                roughness={0}
-                metalness={0.8}
-            />
-        </Box>
     );
 }

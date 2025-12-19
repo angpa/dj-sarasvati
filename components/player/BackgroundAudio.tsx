@@ -14,6 +14,7 @@ interface BackgroundAudioProps {
     onProgress?: (current: number, duration: number) => void;
     className?: string;
     disableAutoSkip?: boolean;
+    muted?: boolean;
 }
 
 export default function BackgroundAudio({
@@ -26,7 +27,8 @@ export default function BackgroundAudio({
     onEnded,
     onProgress,
     className,
-    disableAutoSkip = false
+    disableAutoSkip = false,
+    muted = false
 }: BackgroundAudioProps) {
     const playerRef = useRef<YouTubePlayer | null>(null);
 
@@ -48,12 +50,17 @@ export default function BackgroundAudio({
         try {
             // Check if player is truly ready and internal player exists
             if (playerRef.current && playerRef.current.internalPlayer && typeof playerRef.current.setVolume === 'function') {
-                playerRef.current.setVolume(volume);
+                if (muted) {
+                    playerRef.current.mute();
+                } else {
+                    playerRef.current.unMute();
+                    playerRef.current.setVolume(volume);
+                }
             }
         } catch (e) {
             console.warn("Failed to set volume on player:", e);
         }
-    }, [volume]);
+    }, [volume, muted]);
 
     // Sync Seek
     useEffect(() => {
@@ -98,8 +105,13 @@ export default function BackgroundAudio({
         playerRef.current = event.target;
 
         // Ensure player is unmuted and set volume
-        if (typeof event.target.unMute === 'function') event.target.unMute();
-        event.target.setVolume(volume);
+        if (typeof event.target.unMute === 'function') {
+            if (muted) event.target.mute();
+            else {
+                event.target.unMute();
+                event.target.setVolume(volume);
+            }
+        }
 
         if (isPlaying) {
             if (introSkip > 0) {

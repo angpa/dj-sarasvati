@@ -5,6 +5,9 @@ const nextConfig = {
     env: {
         NEXT_PUBLIC_APP_VERSION: pkg.version,
     },
+    experimental: {
+        serverComponentsExternalPackages: ['@distube/ytdl-core'],
+    },
 };
 
 module.exports = nextConfig;
